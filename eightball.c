@@ -152,18 +152,18 @@ void getln(char *str, unsigned char buflen) {
 		 * Handle backspace and delete keys
 		 * TODO: I would sooner not use these conio functions.
 		 * However this works for now.
-		 * TODO: This assumes 40 column mode and does strange things
-		 * in 80 cols!
+		 * TODO: This assumes 80 column mode and does strange things
+		 * in 40 cols!
 		 */
 		key = *(str+j);
 		if (key == KEY_BACKSPACE) {
 			xpos = wherex();
 			ypos = wherey();
 			if ((xpos == 1) && (ypos != 0)) {
-				xpos = 39;
+				xpos = 79;
 				--ypos;
 			} else if ((xpos == 0) && (ypos != 0)) {
-				xpos = 38;
+				xpos = 78;
 				--ypos;
 			} else if (xpos > 1) {
 				xpos -= 2;
@@ -3681,8 +3681,6 @@ main() {
 
 	/* Disable RUNSTOP/RESTORE */
 	POKE(808, 100);
-#elif defined(A2E)
-	revers(1);
 #endif
 
 	calllevel = 1;
@@ -3694,8 +3692,11 @@ main() {
 	current = NULL;
 
 #ifdef A2E
+	videomode(VIDEOMODE_80COL);
+	revers(1);
 	print("      ***    EIGHTBALL V0.4RC  ***     \n");
 	print("      ***    (C)BOBBI, 2017    ***     \n\n");
+	revers(0);
 #elif defined(C64)
 	print("      ***    EightBall v0.4RC  ***      ");
 	print("      ***    (c)Bobbi, 2017    ***      \n\n");
@@ -3710,8 +3711,6 @@ main() {
 #ifdef CBM
 	printchar(144);      /* Black */
 	printchar(146);      /* Reverse Off */
-#elif defined(A2E)
-	revers(0);
 #endif
 	print("Free Software.\n");
 	print("Licenced under GPL.\n\n");
