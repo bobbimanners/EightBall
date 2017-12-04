@@ -265,22 +265,22 @@ int retregister = 0;
  * and must be sequential.
  */
 #ifdef CBM
-const char binaryops[] = "^/%*+-><&#@";
+const char binaryops[] = "^/%*+-><&#!";
 #else
-const char binaryops[] = "^/%*+-><&|^";
+const char binaryops[] = "^/%*+-><&|!";
 #endif
 
-#define TOK_POW     245 /* Binary ^              */
-#define TOK_DIV     246 /* Binary /              */
-#define TOK_MOD     247 /* Binary %              */
-#define TOK_MUL     248 /* Binary *              */
-#define TOK_ADD     249 /* Binary +              */
-#define TOK_SUB     250 /* Binary -              */
-#define TOK_GT      251 /* Binary >              */
-#define TOK_LT      252 /* Binary <              */
-#define TOK_BITAND  253 /* Binary &              */
-#define TOK_BITOR   254 /* Binary # (| in C)     */
-#define TOK_BITXOR  255 /* Binary @ (^ in C)     */
+#define TOK_POW     245 /* Binary ^               */
+#define TOK_DIV     246 /* Binary /               */
+#define TOK_MOD     247 /* Binary %               */
+#define TOK_MUL     248 /* Binary *               */
+#define TOK_ADD     249 /* Binary +               */
+#define TOK_SUB     250 /* Binary -               */
+#define TOK_GT      251 /* Binary >               */
+#define TOK_LT      252 /* Binary <               */
+#define TOK_BITAND  253 /* Binary &               */
+#define TOK_BITOR   254 /* Binary | (# on CBM)    */
+#define TOK_BITXOR  255 /* Binary ! (^ in C code) */
 
 /*
  * Macro to determine if a token is a binary operator with one character.
@@ -304,7 +304,7 @@ const char binaryops2[] = "====&|<>"; /* 2nd char */
 #define TOK_GTE     239 /* Binary >=             */
 #define TOK_LTE     240 /* Binary <=             */
 #define TOK_AND     241 /* Binary &&             */
-#define TOK_OR      242 /* Binary ## (|| in C)   */
+#define TOK_OR      242 /* Binary || (## on CBM) */
 #define TOK_LSH     243 /* Binary <<             */
 #define TOK_RSH     244 /* Binary >>             */
 
@@ -317,11 +317,16 @@ const char binaryops2[] = "====&|<>"; /* 2nd char */
  * Unary operators - order must match unaryops string and must be sequential.
  * All unary operators are single character.
  */
+#ifdef CBM
 const char unaryops[] = "-+!.*^";
+#else
+const char unaryops[] = "-+!~*^";
+#endif
+
 #define TOK_UNM     231 /* Unary -                  */
 #define TOK_UNP     232 /* Unary +                  */
 #define TOK_NOT     233 /* Unary !                  */
-#define TOK_BITNOT  234 /* Unary . (~ in C)         */
+#define TOK_BITNOT  234 /* Unary ~ (. on CBM)       */
 #define TOK_STAR    235 /* Unary * (word deref.)    */
 #define TOK_CARET   236 /* Unary ^ (byte deref.)    */
 
