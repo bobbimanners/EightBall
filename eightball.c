@@ -1235,7 +1235,7 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-#define HEAP2LIM (char*)0x8200
+#define HEAP2LIM (char*)0x8700 /* ADJUST THIS TO NOT TRASH THE CODE */
 
 #elif defined(C64)
 
@@ -1254,7 +1254,7 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $400 for the C stack */
-#define HEAP2LIM (char*)0x6800  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+#define HEAP2LIM (char*)0x6a00  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                  * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                  * USE THE MAPFILE! */
 
@@ -1277,7 +1277,7 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x7fff - 0x0400 /* Leave $400 for the C stack */
-#define HEAP2LIM (char*)0x7200  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+#define HEAP2LIM (char*)0x7700  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                  * TRASH THE CODE, WHICH LOADS FROM $1200 UP
                                  * USE THE MAPFILE! */
 
@@ -4730,17 +4730,17 @@ main()
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     revers(1);
-    print("      ***    EIGHTBALL V0.5    ***     \n");
+    print("      ***    EIGHTBALL V0.51   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
 #elif defined(C64)
-    print("      ***    EightBall v0.5    ***      ");
+    print("      ***    EightBall v0.51   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
 #elif defined(VIC20)
     /* Looks great in 22 cols! */
-    print("*** EightBall v0.4 ****** (c)Bobbi, 2017 ***\n\n");
+    print("*** EightBall v0.51 ***** (c)Bobbi, 2017 ***\n\n");
 #else
-    print("      ***    EightBall v0.5    ***     \n");
+    print("      ***    EightBall v0.51   ***     \n");
     print("      ***    (c)Bobbi, 2018    ***     \n\n");
 #endif
 
