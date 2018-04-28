@@ -1,0 +1,47 @@
+' Sieve of Eratosthenes
+
+byte A[10000] = 1
+call doall(100)
+end
+
+sub doall(word nr)
+  word n = nr * nr
+  pr.msg "Sieve of Eratosthenes ..."
+  pr.msg "nr is "; pr.dec nr; pr.nl
+  call sieve(n, nr)
+  call printresults(n)
+  return 0
+endsub
+
+sub sieve(word n, word nr)
+  pr.msg "Sieve"
+  word i = 0; word j = 0
+  for i = 2 : (nr - 1)
+    if A[i]
+      j = i * i
+      while (j < n)
+        A[j] = 0
+        j = j + i
+      endwhile
+    endif
+  endfor
+  return 0
+endsub
+
+sub printresults(word n)
+  word i = 0
+  for i = 2 : (n - 1)
+    if A[i]
+      if i > 2
+        pr.msg ", "
+      endif
+      pr.dec i
+    endif
+  endfor
+  pr.msg "."
+  pr.nl
+  return 0
+endsub
+
+
+
