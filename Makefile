@@ -84,9 +84,11 @@ test.d64: 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg
 	c1541 -attach test.d64 -write 8ball64.prg
 	c1541 -attach test.d64 -write 8ballvm64.prg
 
-test.dsk: eightball.system ebvm.system
+test.dsk: eightball.system ebvm.system sieve4.8b
 	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -d test.dsk e8ball.system
 	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -d test.dsk ebvm.system
+	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -d test.dsk sieve4.8b
 	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -p test.dsk e8ball.system sys <eightball.system 
 	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -p test.dsk ebvm.system sys <ebvm.system 
+	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -p test.dsk sieve4.8b txt <sieve4.8b
 

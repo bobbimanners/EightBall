@@ -3017,7 +3017,7 @@ unsigned char dosubr()
 	 * of the location of the variables in the compiled code.
 	 * TODO: There is no way to free this without deleting all of heap2 (source code)
 	 */
-        s = alloc2(sizeof(var_t) + sizeof(int));
+        s = alloc2(sizeof(sub_t));
     	strncpy(s->name, readbuf, 8);
 	s->addr = rtPC;
 	s->next = NULL;
@@ -3177,7 +3177,7 @@ unsigned char docall()
      * Do this before evaluating arguments, which overwrites readbuf
      */
     if (compile) {
-        s = alloc2(sizeof(var_t) + sizeof(int));
+        s = alloc2(sizeof(sub_t));
         strncpy(s->name, readbuf, 8);
     }
 
@@ -4730,17 +4730,17 @@ main()
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     revers(1);
-    print("      ***    EIGHTBALL V0.51   ***     \n");
+    print("      ***    EIGHTBALL V0.52   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
 #elif defined(C64)
-    print("      ***    EightBall v0.51   ***      ");
+    print("      ***    EightBall v0.52   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
 #elif defined(VIC20)
     /* Looks great in 22 cols! */
-    print("*** EightBall v0.51 ***** (c)Bobbi, 2017 ***\n\n");
+    print("*** EightBall v0.52****** (c)Bobbi, 2017 ***\n\n");
 #else
-    print("      ***    EightBall v0.51   ***     \n");
+    print("      ***    EightBall v0.52   ***     \n");
     print("      ***    (c)Bobbi, 2018    ***     \n\n");
 #endif
 

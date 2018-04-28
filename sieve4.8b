@@ -1,7 +1,7 @@
 ' Sieve of Eratosthenes
 
-byte A[10000] = 1
-call doall(100)
+byte A[400] = 1
+call doall(20)
 end
 
 sub doall(word nr)
