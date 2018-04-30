@@ -141,7 +141,7 @@ unsigned char parseline(void);
 unsigned char docall(void);
 unsigned char doreturn(int retvalue);
 void emit(enum bytecode code);
-void emitldi(int word, char *comment);
+void emitldi(int word);
 void emitprmsg(void);
 void linksubs(void);
 
@@ -485,7 +485,7 @@ unsigned char pop_operator_stack()
 void push_operand_stack(int operand)
 {
     if (compile) {
-        emitldi(operand, 0);
+        emitldi(operand);
         return;
     }
     operand_stack[operandSP] = operand;
@@ -1435,7 +1435,7 @@ void emit(enum bytecode code)
  * Compiler: Emit word argument (VM_LDIMM opcode)
  * Stores using codeptr.
  */
-void emitldi(int word, char *comment)
+void emitldi(int word)
 {
     unsigned char c = VM_LDIMM;
     unsigned char *p = (unsigned char *) &word;
@@ -1457,10 +1457,6 @@ void emitldi(int word, char *comment)
     print(bytecodenames[c]);
     printchar(' ');
     printhex(word);
-    if (comment) {
-        print(" ; ");
-        print(comment);
-    }
     printchar('\n');
     rtPC += 3;
 }
@@ -1936,19 +1932,19 @@ unsigned char createintvar(char *name,
                 /*
                  * The following generates code to initialize the array
                  */
-                emitldi(sz, "sz");
+                emitldi(sz);
                 emit(VM_DEC);
                 emit(VM_DUP);
-                emitldi(3, 0);
+                emitldi(3);
                 emit(VM_PICK);
                 if (type == TYPE_WORD) {
                     emit(VM_PSHWORD);
                 } else {
                     emit(VM_PSHBYTE);
                 }
-                emitldi(0, 0);
+                emitldi(0);
                 emit(VM_NEQL);
-                emitldi(rtPC - 11, "loop");
+                emitldi(rtPC - 11);
                 emit(VM_BRNCH);
             } else {
                 if (type == TYPE_WORD) {
@@ -2090,7 +2086,7 @@ unsigned char setintvar(char *name, int idx, int value)
              * ABSOLUTE addressing, but locals are addressed RELATIVE
              * to the frame pointer.
              */
-            emitldi(*getptrtoscalarword(ptr), name);
+            emitldi(*getptrtoscalarword(ptr));
             if ((ptr->type & 0x0f) == TYPE_WORD) {
                 if (local && compilingsub) {
                     emit(VM_STRWORD);
@@ -2127,9 +2123,9 @@ unsigned char setintvar(char *name, int idx, int value)
             /* *** Index is on the stack (Y), and initializer is on the stack (X) *** */
             emit(VM_SWAP);
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                emitldi(2, 0);
+                emitldi(2);
                 emit(VM_MUL);
-                emitldi((int) ((int *) bodyptr), name);
+                emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
                 if (local && compilingsub) {
                     emit(VM_STRWORD);
@@ -2137,7 +2133,7 @@ unsigned char setintvar(char *name, int idx, int value)
                     emit(VM_STAWORD);
                 }
             } else {
-                emitldi((int) ((int *) bodyptr), name);
+                emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
                 if (local && compilingsub) {
                     emit(VM_STRBYTE);
@@ -2226,25 +2222,25 @@ unsigned char getintvar(char *name,
                  * to the frame pointer.
                  */
                 if (address) {
-                    emitldi(*getptrtoscalarword(ptr), name);
+                    emitldi(*getptrtoscalarword(ptr));
                     if (local && compilingsub) {
 			emit(VM_RTOA);
                     }
                 } else {
                     if ((ptr->type & 0x0f) == TYPE_WORD) {
                         if (local && compilingsub) {
-                            emitldi(*getptrtoscalarword(ptr), name);
+                            emitldi(*getptrtoscalarword(ptr));
                             emit(VM_LDRWORD);
                         } else {
-                            emitldi(*getptrtoscalarword(ptr), name);
+                            emitldi(*getptrtoscalarword(ptr));
                             emit(VM_LDAWORD);
                         }
                     } else {
                         if (local && compilingsub) {
-                            emitldi(*getptrtoscalarword(ptr), name);
+                            emitldi(*getptrtoscalarword(ptr));
                             emit(VM_LDRBYTE);
                         } else {
-                            emitldi(*getptrtoscalarword(ptr), name);
+                            emitldi(*getptrtoscalarword(ptr));
                             emit(VM_LDABYTE);
                         }
                     }
@@ -2275,7 +2271,7 @@ unsigned char getintvar(char *name,
 	    if (address) {
                 idx = 0;
 		if (compile) {
-		    emitldi(0, 0);
+		    emitldi(0);
 		}
 	    } else {
 	        /* Means [..] subscript was never provided */
@@ -2289,9 +2285,9 @@ unsigned char getintvar(char *name,
         if (compile) {
             /* *** Index is on the stack (X) *** */
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                emitldi(2, 0);
+                emitldi(2);
                 emit(VM_MUL);
-                emitldi((int) ((int *) bodyptr), name);
+                emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
 		if (!address) {
                     if (local && compilingsub) {
@@ -2301,7 +2297,7 @@ unsigned char getintvar(char *name,
                     }
 		}
             } else {
-                emitldi((int) ((int *) bodyptr), name);
+                emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
 		if (!address) {
                     if (local && compilingsub) {
@@ -2382,8 +2378,8 @@ void doif(unsigned char arg)
     if (compile) {
         /* **** Value of IF expression is on the VM stack **** */
         emit(VM_NOT);
-        push_return(rtPC + 1);  /* Address of dummy 0xffff */
-        emitldi(0xffff, "TDB");
+        push_return(rtPC + 1);
+        emitldi(0xffff); /* To be filled in later */
         emit(VM_BRNCH);
         push_return(0);
     } else {
@@ -2422,7 +2418,7 @@ unsigned char doelse()
          * Code to jump over ELSE block when IF condition is true
          */
         return_stack[returnSP + 1] = rtPC;
-        emitldi(0xffff, "TDB");
+        emitldi(0xffff); /* To be filled in later */
         emit(VM_JMP);
 
         /*
@@ -2757,7 +2753,7 @@ unsigned char doendfor()
 
     if (compile) {
         /* **** Loop limit is on the VM stack **** */
-        emitldi(return_stack[returnSP + 2], "loop var");
+        emitldi(return_stack[returnSP + 2]);
         if (type == TYPE_WORD) {
             if (return_stack[returnSP + 4]) {
                 emit(VM_LDRWORD);
@@ -2773,7 +2769,7 @@ unsigned char doendfor()
         }
         emit(VM_INC);
         emit(VM_DUP);
-        emitldi(return_stack[returnSP + 2], "loop var");
+        emitldi(return_stack[returnSP + 2]);
         if (type == TYPE_WORD) {
             if (return_stack[returnSP + 4]) {
                 emit(VM_STRWORD);
@@ -2788,7 +2784,7 @@ unsigned char doendfor()
             }
         }
         emit(VM_GTE);
-        emitldi(return_stack[returnSP + 3], "ret addr");
+        emitldi(return_stack[returnSP + 3]);
         emit(VM_BRNCH);
         goto unwind;
     }
@@ -2864,7 +2860,7 @@ void dowhile(char *startTxtPtr, unsigned char arg)
         /* **** Value of WHILE expression is on the VM stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);  /* Address of dummy 0xffff */
-        emitldi(0xffff, "TDB");
+        emitldi(0xffff);
         emit(VM_BRNCH);
         push_return(0);         /* Dummy */
     } else {
@@ -2903,7 +2899,7 @@ unsigned char doendwhile()
         /*
          * Jump back and re-evaluate the WHILE argument.
          */
-        emitldi(return_stack[returnSP + 3], "re-eval");
+        emitldi(return_stack[returnSP + 3]);
         emit(VM_JMP);
         /*
          * Fixup the dummy destination address initialized by
@@ -3145,8 +3141,9 @@ unsigned char doendsubr()
         rtSP = rtFP;
         compilingsub = 0;
         vars_deletecallframe();
+	emitldi(0);
     }
-    doreturn(0); // THINK ABOUT THIS
+    doreturn(0);
     return RET_SUCCESS;
 }
 
@@ -3430,7 +3427,7 @@ unsigned char docall()
                 }
 
                 if (compile) {
-                    emitldi(0xffff, readbuf);
+                    emitldi(0xffff);
                     /*
                      * Create entry in call table
                      * We use heap2 for this because heap1 is used for keeping track
@@ -4008,12 +4005,12 @@ unsigned char parseline()
         case TOK_PRDEC_S:
             if (compile) {
                 emit(VM_DUP);   /* Preserve arg on the stack */
-                emitldi(0x8000, 0);
+                emitldi(0x8000);
                 emit(VM_BITAND);
                 emit(VM_NOT);
-                emitldi(rtPC + 9, 0);   /* Jump over printing of '-' */
+                emitldi(rtPC + 9);   /* Jump over printing of '-' */
                 emit(VM_BRNCH);
-                emitldi('-', "minus");
+                emitldi('-');
                 emit(VM_PRCH);
 		emit(VM_NEG);
                 emit(VM_PRDEC);
@@ -4040,7 +4037,7 @@ unsigned char parseline()
             break;
         case TOK_PRNL:
             if (compile) {
-                emitldi(10, "nl");
+                emitldi(10);
                 emit(VM_PRCH);
             } else {
                 printchar('\n');
@@ -4730,17 +4727,17 @@ main()
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     revers(1);
-    print("      ***    EIGHTBALL V0.52   ***     \n");
+    print("      ***    EIGHTBALL V0.53   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
 #elif defined(C64)
-    print("      ***    EightBall v0.52   ***      ");
+    print("      ***    EightBall v0.53   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
 #elif defined(VIC20)
     /* Looks great in 22 cols! */
-    print("*** EightBall v0.52****** (c)Bobbi, 2017 ***\n\n");
+    print("*** EightBall v0.53****** (c)Bobbi, 2017 ***\n\n");
 #else
-    print("      ***    EightBall v0.52   ***     \n");
+    print("      ***    EightBall v0.53   ***     \n");
     print("      ***    (c)Bobbi, 2018    ***     \n\n");
 #endif
 
