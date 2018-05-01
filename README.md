@@ -60,7 +60,7 @@ This is a free software / open source project and I invite anyone interested to 
 ## Build Toolchain
 I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
 
-The Linux version of EightBall is currently being built using gcc 6.3.0.
+The Linux version of EightBall is currently being built using gcc 7.3.0.
 
 # EightBall Language Reference and Tutorial
 
