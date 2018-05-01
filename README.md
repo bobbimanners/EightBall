@@ -158,19 +158,97 @@ You can list the program using the `:l` command and run it using the EightBall i
 # Building the Code
 
 ## Build Toolchain
-I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
+I am building EightBall using `cc65` v2.15 on Ubuntu Linux.
 
-The Linux version of EightBall is currently being built using gcc 7.3.0.
+The Linux version of EightBall is currently being built using `gcc` v7.3.0.  It should build with whatever version of `gcc` you have to hand.
+
+In order to build Apple diskette images I use the open source Apple Commander tool.
+
+In order to build Commodore 1541 diskette images, I use the `c1541` tool that comes with the open source VICE emulator.
+
+I find the VICE emulator useful for testing on the Commodore C64 and VIC20 pathforms.  MAME provides a useful Apple //e enhanced emulation.
+
+Links to these projects:
+- [cc65](http://github/com/cc65/cc65)
+- [Apple Commander](http://applecommander.sourceforge.net/)
+- [VICE](http://vice-emu.sourceforge.net/)
+- [MAME](http://mamedev.org/)
 
 ## Build Procedure
-...
+I use Ubuntu Linux (18.04 at the current time.)  It should also be possible to build the project using any relatively recent Linux distribution.
 
-## Other Useful Tools
-The following are not strictly build dependencies, but there are a number of useful utilities to be aware of:
-- c1541
-- Apple Commander
-- VICE
-- MAME
+First clone the repository from GitHub.
+```
+$ git clone https://github.com/bobbimanners/EightBall.git
+
+```
+Then, edit the `Makefile` to adjust the paths to point to your local installation of the cc65 compiler.  If you wish to build disk images for Apple and Commodore machines, you will need to adjust the paths to point to your local installation of Apple Commander or VICE (for the `c1541` tool).
+```
+$ cd EightBall
+$ vi Makefile
+```
+Once you are satisfied with the `Makefile`, building the software is simple:
+```
+$ make
+```
+This will build executables for Linux using `gcc` and for 6502 targets using `cc65`.  The build targets are as follows:
+- `eightball` - Editor/interpreter/compiler for Linux (32 bit).
+- `eightball.system` - Editor/interpreter/compiler for Apple IIe Enhanced and compatibles
+- `8ball64.prg` - Editor/interpreter/compiler for C64.
+- `8ball20.prg` - Editor/interpreter/compiler for VIC20.
+- `eightballvm` - Virtual machine runtime for Linux (32 bit).
+- `ebvm.system` - Virtual machine runtime for Apple IIe Enhanced and compatibles
+- `8ballvm64.prg` - Virtual machine runtime for C64.
+- `8ballvm20.prg` - Virtual machine runtime for VIC20.
+- `test.dsk` - Test diskette image for Apple II.
+- `test.d64` - Test diskette image for Commdore C64 and VIC20.
+
+## First Run (on Linux)
+First start the EightBall editor/interpreter/compiler:
+```
+$ ./eightball
+```
+To load and run the unit test script within the EightBall interpreter:
+```
+:r"unittest.8b"
+run
+```
+Then to compile it, and save the bytecode to the file `bytecode`:
+```
+comp
+quit
+```
+And finally, to run the bytecode under the VM:
+```
+$ ./eightballvm
+```
+
+## Running Apple //e Version with MAME
+You will have to find the Apple II ROMs online for use with MAME.
+
+To start MAME and boot from `test.dsk`:
+```
+$ mame -w apple2ee -sl6 diskii -floppydisk1 test.dsk
+```
+Look [here](#apple-ii) for further instructions.
+
+## Running C64 Version with VICE
+To start the `x64` emulator:
+```
+$ x64 -8 test.d64
+```
+Note that EightBall scripts on Commodore platforms must be encoded in PETSCII rather than ASCII.  `unittest.8bp` is a PETSCII version of `unittest.8b` (created automatically using the Linux `tr` tool - see `Makefile` for details of how this is done.)
+
+Look [here](#commodore-64) for further instructions.
+
+## Running VIC20 Version with VICE
+To start the `xvic` emulator:
+```
+$ xvic -mem all -drive8type 1541 -8 test.d64
+```
+Note that EightBall scripts on Commodore platforms must be encoded in PETSCII rather than ASCII.
+
+Look [here](#vic-20) for further instructions.
 
 ## Unit Tests
 There is a unit test script `unittest.8b` written in EightBall.
