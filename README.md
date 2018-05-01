@@ -10,7 +10,9 @@ Includes:
 # Table of Contents
 - [Intro](#Intro)
 - Language Reference and Tutorial
-    - [Variables](##Variables)
+    - [Variables](#Variables)
+    - [Expressions](#Expressions)
+    - [Flow Control](#Flow-Control)
 
 # Intro
 
@@ -88,7 +90,7 @@ Array elements begin from 0, so the array `storage` above has elements from 0 to
     
 ## Expressions
 
-## Constants
+### Constants
 Constants may be decimal:
 
     byte a = 10
@@ -100,12 +102,12 @@ or hex:
     byte a = $0a
     word w = $face
 
-## Operators
+### Operators
 EightBall supports most of C's arithmetic, logical and bitwise operators.  They have the same precedence as in C as well.  Since the Commodore machines do not have all the ASCII character, some substitutions have been made (shown in parenthesis below.)
 
 EightBall also implements 'star operators' for pointer dereferencing which will also be familiar to C programmers.
 
-### Arithmetic
+#### Arithmetic
 * Addition: binary `+`
 * Subtraction: binary `-`
 * Multiplication: binary `*`
@@ -114,7 +116,7 @@ EightBall also implements 'star operators' for pointer dereferencing which will 
 * Power: binary `^`
 * Negation: unary prefix `-`
 
-### Logical
+#### Logical
 * Logical equality: binary `==`
 * Logical inequality: binary `!=`
 * Logical greater-than: binary `>`
@@ -125,7 +127,7 @@ EightBall also implements 'star operators' for pointer dereferencing which will 
 * Logical or: binary `||` (binary `##` on CBM)
 * Logical not: unary `!`
 
-### Bitwise
+#### Bitwise
 * Bitwise and: binary `&`
 * Bitwise or: binary `|` (binary `#` on CBM)
 * Bitwise xor: binary `!`
@@ -133,7 +135,7 @@ EightBall also implements 'star operators' for pointer dereferencing which will 
 * Right shift: binary `>>`
 * Bitwise not: unary prefix `~` (unary prefix `.` on CBM)
 
-### Address-of Operator
+#### Address-of Operator
 The `&` prefix operator returns a pointer to a variable which may be used to read and write the variable's contents.  The operator may be applied to scalar variables, whole arrays and individual elements of arrays.
 
     word w = 123;
@@ -142,7 +144,7 @@ The `&` prefix operator returns a pointer to a variable which may be used to rea
     pr.dec &A;       ' Address of start of array A
     pr.dec &A[2]     ' Address of third element of array A
 
-### 'Star Operators'
+#### 'Star Operators'
 EightBall provides two 'star operators' which dereference pointers in a manner similar to the C star operator.  One of these (`*`) operates on word values, the other (`^`) operates on byte values.  Each of the operators may be used both for reading and writing through pointers.
 
 Here is an example of a pointer to a word value:
