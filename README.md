@@ -602,7 +602,6 @@ The program in memory is compiled to EightBall VM bytecode.  This is written to 
 The `bytecode` file may be executed using the EightBall Virtual Machine that is part of this package.
 
 ### Quit EightBall
-Easy:
 
     quit
 
