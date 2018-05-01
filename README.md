@@ -542,3 +542,37 @@ To show a range of lines:
     :l0-20
 
 (The command is the letter Ell, not the number 1!)
+
+# EightBall Compiler and Virtual Machine
+
+## What is it?
+
+The EightBall Virtual Machine is a simple runtime VM for executing the bytecode produced by the EightBall compiler.  The EightBall VM can run on 6502 systems (Apple II, Commodore VIC20, C64) or as a Linux process.
+
+## How to use it?
+
+The EightBall system is split into two separate executables:
+- EightBall editor, interpreter and compiler 
+- EightBall VM, which runs the code built by the compiler
+
+On Linux, the editor/interpreter/compiler is `eightball` and the Virtual Machine is `eightballvm`.
+
+On Apple II ProDOS, the editor/interpreter/compiler is `eightball.system` and the VM is `8bvm.system`.
+
+On Commodore VIC20, the editor/interpreter/compiler is `8ball20.prg` and the VM is `8ballvm20.prg`.
+
+On Commodore C64, the editor/interpreter/compiler is `8ball64.prg` and the VM is `8ballvm64.prg`.
+
+Here is how to use the compiler:
+- Start the main EightBall editor/interpreter/compiler program.
+- Write your program in the editor.
+- Debug using the interpreter (`run` command).
+- When it seems to work work okay, you can compile with the `comp` command.
+
+The compiler will dump an assembly-style listing to the console and also write the VM bytecode to a binary file called `bytecode`.  If all goes well, no inscrutable error messages will be displayed.
+
+Then you can run the VM program for your platform.  It will load the bytecode from the file `bytecode` and execute it.  Running compiled code under the Virtual Machine is much faster than the interpreter (and also more memory efficient.)
+
+## VM Internals
+
+See `eightballvm.h` for technical details.
