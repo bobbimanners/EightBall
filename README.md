@@ -22,7 +22,7 @@ Includes:
 - [Line Editor](#line-editor)
 - [EightBall Compiler and Virtual Machine](#eightball-compiler-and-virtual-machine)
     - [VM Internals](#vm-internals)
-    - [Interpreter/Compiler Internals](#interpreter-compiler-internals)
+    - [Interpreter/Compiler Internals](#interpreter--compiler-internals)
 - [Code Examples](#code-examples)
 
 # Intro
