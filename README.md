@@ -54,6 +54,100 @@ Disk images:
 - Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
 - test.d64 - Commodore 1541 disk images with EightBall for VIC20 and C64.
 
+### Apple II
+
+I used the well-known tool ADP to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
+
+It is also possible to run the EightBall system using the MAME Apple II emulation under Linux.
+
+To run the main EightBall executable, which includes the line editor, interpreter and bytecode compiler, choose to start `EIGHTBALL.SYSTEM` from within the ProDOS launcher.
+
+You can then enter and run the [test program](#simple-test-program) below.
+
+One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
+
+```
+comp
+quit
+```
+The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.
+
+If you then invoke the EightBall Virtual Machine `EBVM.SYSTEM`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
+
+### Commodore 64
+
+For the Commodore 64, the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
+
+It is also possible to run the EightBall system using the Vice C64 emulator under Linux.
+
+To run the main EightBall executable, which includes the line editor, interpreter and bytecode compiler, run `8BALL64.PRG` as follows:
+
+```
+LOAD"8BALL64.PRG",8
+RUN
+```
+You can then enter and run the [test program](#simple-test-program) below.
+
+One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
+
+```
+comp
+quit
+```
+The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.  (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due coure.)
+
+If you then invoke the EightBall Virtual Machine `8BALLVM64.PRG`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
+```
+LOAD"8BALLVM64.PRG",8
+RUN
+```
+
+### VIC 20
+
+For the Commodore VIC20 (plus 32K expansion RAM), the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
+
+It is also possible to run the EightBall system using the Vice VIC20 emulator under Linux.
+
+To run the main EightBall executable, which includes the line editor, interpreter and bytecode compiler, run `8BALL20.PRG` as follows:
+
+```
+LOAD"8BALL20.PRG",8
+RUN
+```
+You can then enter and run the [test program](#simple-test-program) below.
+
+One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
+
+```
+comp
+quit
+```
+The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.  (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due coure.)
+
+If you then invoke the EightBall Virtual Machine `8BALLVM20.PRG`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
+```
+LOAD"8BALLVM20.PRG",8
+RUN
+```
+
+### Simple Test Program
+
+Here is a simple test program you can enter to play with EightBall when getting started:
+
+```
+:i0
+byte b=0
+for b=1:10
+  pr.msg "Hello world ..."; pr.dec b; pr.nl
+endfor
+end
+.
+```
+
+I have included the line editor commands to begin inserting text `:i0` and to leave the editor and return to the interpreter (a single period on its own.)
+
+You can list the program using the `:l` command and run it using the EightBall interpreter using the `run` command.
+
 ## Licence
 
 Free Software licenced under GPL v3.
