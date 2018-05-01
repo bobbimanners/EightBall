@@ -150,7 +150,7 @@ end
 
 I have included the line editor commands to begin inserting text `:i0` and to leave the editor and return to the interpreter (a single period on its own.)
 
-You can list the program using the `:l` command and run it using the EightBall interpreter using the `run` command.
+You can list the program using the `:l` (the letter Ell, not the number 1!) command and run it using the EightBall interpreter using the `run` command.
 
 # Building the Code
 
