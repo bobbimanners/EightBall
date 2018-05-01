@@ -927,6 +927,16 @@ The final step of compilation involves iterating through the `callsbegin` list, 
 
 # Code Examples
 
+## Hello World
+
+This one is obligatory:
+```
+pr.msg "Hello world!"; pr.nl
+end
+```
+
+You can omit the `end` statement if you like.
+
 ## Recursive Factorial
 
 This example shows how EightBall can support recursion.  I should point out that it is much better to do this kind of thing using iteration, but this is a fun simple example:
