@@ -2,8 +2,6 @@
 
 ![picture](https://upload.wikimedia.org/wikipedia/commons/7/78/8_ball_face.jpg)
 
-Image: Wikipedia / Public Domain
-
 The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC20
 
 Includes:
