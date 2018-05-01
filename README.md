@@ -9,10 +9,17 @@ Includes:
 
 # Table of Contents
 - [Intro](#Intro)
-- Language Reference and Tutorial
-    - [Variables](#Variables)
-    - [Expressions](#Expressions)
-    - [Flow Control](#Flow-Control)
+- [EightBall Language Reference and Tutorial](#eightball-language-reference-and-tutorial)
+    - [Variables](#variables)
+    - [Expressions](#expressions)
+    - [Flow Control](#flow-control)
+    - [Subroutines](#subroutines)
+    - [Code Format](#code-format)
+    - [Bits and Pieces](#bits-and-pieces)
+    - [Input and Output](#input-and-output)
+- [Line Editor](#line-editor)
+- [EightBall Compiler and Virtual Machine](#eightball-compiler-and-virtual-machine)
+- [Code Examples](#code-examples)
 
 # Intro
 
@@ -486,26 +493,26 @@ Allows a line of input to be read from the keyboard and to be stored to an array
     pr.str buffer
     pr.nl
 
-## Line Editor
+# Line Editor
 Eightball includes a simple line editor for editing program text.  Programs are saved to disk in plain text format (ASCII on Apple II, PETSCII on CBM).
 
 Be warned that the line editor is rather primitive.  However we are trying to save memory.
 
 Editor commands start with the colon character (:).
 
-### Load from Disk
+## Load from Disk
 To load a new source file from disk, use the `:r` 'read' command:
 
     :r "myfile.8b"
 
-### Save to Disk
+## Save to Disk
 To save the current editor buffer to disk, use the :w 'write' command:
 
     :w "myfile.8b"
 
 On Commodore systems, this must be a new (non-existing) file, or a drive error will result.
 
-### Insert Line(s)
+## Insert Line(s)
 
 Start inserting text before the specified line.  The editor switches to insert mode, indicated by the '>' character (in inverse green on CBM).  The following command will start inserting text at the beginning of an empty buffer:
 
@@ -514,11 +521,11 @@ Start inserting text before the specified line.  The editor switches to insert m
 
 One or more lines of code may then be entered.  When you are done, enter a period '.' on a line on its own to return to EightBall immediate mode prompt.
 
-### Append Line(s)
+## Append Line(s)
 
 Append is identical to the insert command described above, except that it starts inserting /after/ the specified line.  This is often useful to adding lines following the end of an existing program.
 
-### Delete Line(s)
+## Delete Line(s)
 
 This command allows one or more lines to be deleted.  To delete one line:
 
@@ -528,7 +535,7 @@ or to delete a range of lines:
 
     :d10,12
 
-### Change Line
+## Change Line
 
 This command allows an individual line to be replaced (like inserting a new line the deleting the old line).  It is different to the insert and append commands in that the text is entered immediately following the command (not on a new line).  For example:
 
@@ -538,7 +545,7 @@ will replace line 21 with `word var1=12`.  Note the colon terminator following t
 
 Note that the syntax of this command is contrived to allow the CBM screen editor to work on listed output in a similar way to CBM BASIC.  Code may be listed using the `:l` command and the screen may then be interactively edited using the cursor keys and return, just as in BASIC.
 
-### List Line(s)
+## List Line(s)
 
 This allows the program text to be listed to the console.  Either the whole program may be displayed or just a range of lines.  To show everything:
 
