@@ -1,4 +1,5 @@
-# EightBall
+# The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC 20
+
 The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC20
 
 Includes:
@@ -6,15 +7,17 @@ Includes:
 - Compiler
 - Virtual Machine
 
+## Licence
+
 Free Software licenced under GPL v3.
 Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
 
-## The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC 20
+# Intro
 
-### What is EightBall?
+## What is EightBall?
 EightBall is an interpreter for a novel structured programming language.  It runs on a number of 6502-based vintage systems and may also be compiled as a 32 bit Linux executable.
 
-### Design Philosophy
+## Design Philosophy
 EightBall tries to form a balance of the following qualities, in 20K or so of 6502 code:
 * Statically typed
 * Provides facilities which encourage structured programming ...
@@ -25,21 +28,29 @@ EightBall tries to form a balance of the following qualities, in 20K or so of 65
 
 EightBall resembles an interpreted C.
 
-### Supported Systems
+## Supported Systems
 The following 6502-based systems are currently supported:
 * Apple II - EightBall runs under ProDOS and uses upper/lowercase text.  It should run on 64K Apple IIe, IIc or IIgs.  It can probably run on Apple II/II+ with an 80 column code, but this has not been tested.
 * Commodore 64 - EightBall should run on any C64.
 * Commodore VIC-20 - EightBall runs on a VIC-20 with 32K of additional RAM.
 
-### Getting Started
+## Getting Started
 There are executables and disk images available to download for Apple II, Commodore 64 and VIC-20.  These may be run on real hardware or one of the many emulators that are available.
 
 The language itself is documented in these wiki pages.  The best way to learn is to study example programs.
 
-### Build Toolchain
+Disk images:
+- Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
+- test.d64 - Commodore 1541 disk images with EightBall for VIC20 and C64.
+
+## Build Toolchain
 I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
 
 The Linux version of EightBall is currently being built using gcc 6.3.0.
+
+# EightBall Language Reference and Tutorial
+
+## Variables
 
 ### Simple Types
 
@@ -70,6 +81,8 @@ Array elements begin from 0, so the array `storage` above has elements from 0 to
     storage[0] = 0;  ' First element
     storage[9] = 99; ' Last element
     
+## Flow Control
+
 EightBall supports a 'structured' programming style by providing multi-line `if`/`then`/`else` conditionals, `for` loops and `while` loops.
 
 Note that the `goto` statement is not supported!
@@ -106,6 +119,8 @@ These are quite flexible, for example:
       call getbyte()
       bytes = bytes + 1
     endwhile
+
+## Subroutines
 
 ### Simple Subroutine Declaration
 
@@ -224,5 +239,34 @@ The `end` statement marks the normal end of execution.  This is often used to st
     sub foo()
       pr.msg "foo"; pr.nl
     endsub
+
+## Code Format
+
+### Whitespace, Semicolon Separators
+
+EightBall code can be arranged however you wish.  For example, this:
+
+    word w = 0; for w = 1 : 10; pr.dec w; pr.nl; endfor
+
+is identical to this:
+
+    word w = 0
+    for w = 1 : 10
+      pr.dec w; pr.nl
+    endfor
+
+Semicolons **must** be used to separate multiple statements on a line (even loop contructs as seen in the first example above.)
+
+Indentation of the code (as shown in the examples in this Wiki) is optional, but encouraged.
+
+### Comments
+
+Comments are introduced by the single quote character.  A full line comment may be entered as follows:
+
+    ' This is a comment
+
+If you wish to comment after a statement, note that a semicolon is required to separate the statement and the comment:
+
+    pr.msg "Hello there"; ' Say hello!!!
 
 
