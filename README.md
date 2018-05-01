@@ -461,7 +461,7 @@ The subroutine above can be called as follows:
 
     call myFirstSubroutine()
 
-When `myFirstSubroutine` hits a `return` statement, the flow of execution will return to the statement immediately following the `call`.
+When `myFirstSubroutine` hits a `return` or `endsub` statement, the flow of execution will return to the statement immediately following the `call`.
 
 ### Local Variables
 
