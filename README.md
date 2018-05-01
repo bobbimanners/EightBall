@@ -761,6 +761,22 @@ The main difference is that instead of storing global and local variables in HEA
 
 The compiled bytecode is written to the beginning of HEAP1, starting from the lowest address and working up.  Since no actual data is stored in HEAP1 when compiling (only `var_t` headers and addresses), it is hoped that there will be enough space for the compiled code without having it collide with the symbol tables!
 
+The compiler also maintains a linked list of subroutine calls and a linked list of subroutine entry points which are used for the final step of compilation - internal linkage.  Subroutine calls and entry points are both represented using records of type `sub_t`, each of which contain the first eight characters of the subroutine name, a two byte address pointer and a two byte pointer to the next record.  Currently, the compiler allocates these linked lists (anchored by `callsbegin` and `subsbegin`) in HEAP2, after the source code.  This space is not freed until HEAP2 is purged using the `new` command, so some space is lost with each use of the `comp` command.
+
+### Compiler Address Fixups
+
+When compiling EightBall code, there are instances where the generated code needs to jump or branch ahead, to some location within code that has yet to be generated.  In this case, the compiler will emit the dummy address `$ffff` and will come back later to insert the correct address, once it is known.  This is referred to as an "address fixup."
+
+#### Conditionals / While loops
+
+When compiling `if` / `endif` or `if` . `else`, `endif` conditionals, the compiler needs to generate code to branch forward to jump over the `if` or `else` code blocks.  Similarly, for `while` / `endwhile` loops, the compiler needs to branch forward to jump over the loop body if the condition is false.  In all these cases, the address fixup is computed when the destination code is generated.
+
+#### Subroutine Calls
+
+Another situation where address fixups are required is subroutine calls.  When a subroutine is called, a new entry is recorded in the `callsbegin` linked list, containing the beginning of the subroutine name and a pointer to the VM address of the call address to be fixed up.  When a subroutine definition is encountered, a new entry is recorded in the `subsbegin` linked list, again containing the subroutine name but this time with the address of the entry point.
+
+The final step of compilation involves iterating through the `callsbegin` list, looking up each subroutine name in the `subsbegin` list.  If the name is found, then the dummy `$ffff` at the fixup address is replaced with the entry point of the filename.  Otherwise a linkage error is (cryptically) reported.
+
 # Code Examples
 
 ## Recursive Factorial
