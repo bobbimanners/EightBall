@@ -447,13 +447,13 @@ EightBall allows named subroutines to be defined, for example:
 
 All subroutines must end with `endsub` statement.
 
-A subroutine may have more than one `return` statement returning a numeric value:
+A subroutine may return a `word` value to the caller using the `return` statement.
 
     sub mySecondSubroutine()
       return 2
     endsub
 
-If the flow of execution hits the `endsub` then 0 is returned to the caller.
+If the flow of execution hits the `endsub` (without first encountering a `return` statement) then 0 is returned to the caller.
 
 ### Simple Subroutine Invocation
 
