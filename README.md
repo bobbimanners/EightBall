@@ -541,8 +541,17 @@ Then to call it:
 
 This code takes the address of variable `result` using the ampersand operator and passes it to subroutine `adder` as `resptr`.  The subroutine then uses the star operator to write the result of the addition of the first two arguments (10 + 20 in this example) to the word pointed to by `resptr`.
 
-Unlike C, there are no special pointer types.  Pointers must be stored in a `word` variable, since they do not fit in a `byte`.  Pointers are dereferenced using the * operator to reference words or the ^ operator to reference bytes.
+Unlike C, there are no special pointer types.  Pointers must be stored in a `word` variable, since they do not fit in a `byte`.  Pointers are dereferenced using the `*` operator to reference words or the `^` operator to reference bytes.
 
+Here is an example of using a pointer to byte:
+
+    call poke(1234, 10)
+    end
+    
+    sub poke(word addr, byte val)
+        ^addr = val
+    endsub
+    
 ### Passing an Array by Reference
 
 **Warning: This is currently not implemented in the compiler, only the interpreter.**
