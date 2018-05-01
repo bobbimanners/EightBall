@@ -37,6 +37,8 @@
 /*                                                                        */
 /**************************************************************************/
 
+#define VERSIONSTR "0.55"
+
 void print(char *str);
 
 void printchar(char c);

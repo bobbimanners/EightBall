@@ -1235,7 +1235,7 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-#define HEAP2LIM (char*)0x8700 /* ADJUST THIS TO NOT TRASH THE CODE */
+#define HEAP2LIM (char*)0x8600 /* ADJUST THIS TO NOT TRASH THE CODE */
 
 #elif defined(C64)
 
@@ -1250,10 +1250,10 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
  *   Heap 1: Variables
  *   Heap 2: Program text
  */
-#define HEAP1TOP (char*)0xbfff
+#define HEAP1TOP (char*)0xbfff /* Leaves 2K for stack, and 2K for ??? */
 #define HEAP1LIM (char*)0xa000
 
-#define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $400 for the C stack */
+#define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
 #define HEAP2LIM (char*)0x6a00  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                  * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                  * USE THE MAPFILE! */
@@ -2123,8 +2123,10 @@ unsigned char setintvar(char *name, int idx, int value)
             /* *** Index is on the stack (Y), and initializer is on the stack (X) *** */
             emit(VM_SWAP);
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                emitldi(2);
-                emit(VM_MUL);
+                //emitldi(2);
+                //emit(VM_MUL);
+		emitldi(1);
+		emit(VM_LSH);
                 emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
                 if (local && compilingsub) {
@@ -2285,8 +2287,10 @@ unsigned char getintvar(char *name,
         if (compile) {
             /* *** Index is on the stack (X) *** */
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                emitldi(2);
-                emit(VM_MUL);
+                //emitldi(2);
+                //emit(VM_MUL);
+		emitldi(1);
+		emit(VM_LSH);
                 emitldi((int) ((int *) bodyptr));
                 emit(VM_ADD);
 		if (!address) {
@@ -4731,17 +4735,17 @@ main()
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     revers(1);
-    print("      ***    EIGHTBALL V0.54   ***     \n");
+    print("      ***    EIGHTBALL V" VERSIONSTR "   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
 #elif defined(C64)
-    print("      ***    EightBall v0.54   ***      ");
+    print("      ***    EightBall v" VERSIONSTR "   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
 #elif defined(VIC20)
     /* Looks great in 22 cols! */
-    print("*** EightBall v0.54****** (c)Bobbi, 2017 ***\n\n");
+    print("*** EightBall v" VERSIONSTR "****** (c)Bobbi, 2017 ***\n\n");
 #else
-    print("      ***    EightBall v0.54   ***     \n");
+    print("      ***    EightBall v" VERSIONSTR "   ***     \n");
     print("      ***    (c)Bobbi, 2018    ***     \n\n");
 #endif
 
