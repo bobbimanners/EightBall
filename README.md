@@ -4,13 +4,13 @@ The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC20
 
 Includes:
 - Interpreter
-- Compiler
+- Bytecode Compiler
 - Virtual Machine
 
-## Licence
-
-Free Software licenced under GPL v3.
-Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
+# Table of Contents
+- [Intro](#Intro)
+- Language Reference and Tutorial
+    - [Variables](##Variables)
 
 # Intro
 
@@ -26,8 +26,6 @@ EightBall tries to form a balance of the following qualities, in 20K or so of 65
 * ... While providing powerful language primitives and encapsulation in subroutines, allowing the language to be extended by writing EightBall routines
 * When in doubt, do it in a similar way to C!
 
-EightBall resembles an interpreted C.
-
 ## Supported Systems
 The following 6502-based systems are currently supported:
 * Apple II - EightBall runs under ProDOS and uses upper/lowercase text.  It should run on 64K Apple IIe, IIc or IIgs.  It can probably run on Apple II/II+ with an 80 column code, but this has not been tested.
@@ -42,6 +40,13 @@ The language itself is documented in these wiki pages.  The best way to learn is
 Disk images:
 - Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
 - test.d64 - Commodore 1541 disk images with EightBall for VIC20 and C64.
+
+## Licence
+
+Free Software licenced under GPL v3.
+Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
+
+This is a free software / open source project and I invite anyone interested to participate via GitHub.
 
 ## Build Toolchain
 I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
