@@ -81,6 +81,116 @@ Array elements begin from 0, so the array `storage` above has elements from 0 to
     storage[0] = 0;  ' First element
     storage[9] = 99; ' Last element
     
+## Expressions
+
+## Constants
+Constants may be decimal:
+
+    byte a = 10
+    word w = 65535
+    word q = -1
+
+or hex:
+
+    byte a = $0a
+    word w = $face
+
+## Operators
+EightBall supports most of C's arithmetic, logical and bitwise operators.  They have the same precedence as in C as well.  Since the Commodore machines do not have all the ASCII character, some substitutions have been made (shown in parenthesis below.)
+
+EightBall also implements 'star operators' for pointer dereferencing which will also be familiar to C programmers.
+
+### Arithmetic
+* Addition: binary `+`
+* Subtraction: binary `-`
+* Multiplication: binary `*`
+* Division: binary `/`
+* Modulus: binary `%`
+* Power: binary `^`
+* Negation: unary prefix `-`
+
+### Logical
+* Logical equality: binary `==`
+* Logical inequality: binary `!=`
+* Logical greater-than: binary `>`
+* Logical greater-than-or-equal: binary `>=`
+* Logical less-than: binary `<`
+* Logical less-than-or-equal: binary `<=`
+* Logical and: binary `&&`
+* Logical or: binary `||` (binary `##` on CBM)
+* Logical not: unary `!`
+
+### Bitwise
+* Bitwise and: binary `&`
+* Bitwise or: binary `|` (binary `#` on CBM)
+* Bitwise xor: binary `!`
+* Left shift: binary `<<`
+* Right shift: binary `>>`
+* Bitwise not: unary prefix `~` (unary prefix `.` on CBM)
+
+### Address-of Operator
+The `&` prefix operator returns a pointer to a variable which may be used to read and write the variable's contents.  The operator may be applied to scalar variables, whole arrays and individual elements of arrays.
+
+    word w = 123;
+    word A[10] = 0;
+    pr.dec &w;       ' Address of scalar w
+    pr.dec &A;       ' Address of start of array A
+    pr.dec &A[2]     ' Address of third element of array A
+
+### 'Star Operators'
+EightBall provides two 'star operators' which dereference pointers in a manner similar to the C star operator.  One of these (`*`) operates on word values, the other (`^`) operates on byte values.  Each of the operators may be used both for reading and writing through pointers.
+
+Here is an example of a pointer to a word value:
+
+    word val = 0;     ' Real value stored here
+    word addr = &val; ' Now addr points to val
+    *addr = 123;      ' Now val is 123
+    pr.dec *addr;     ' Recover the value via the pointer
+    pr.nl
+
+Here is an example using a pointer to byte.  This is similar to `PEEK` and `POKE` in BASIC.
+
+    word addr = $c000; ' addr points to hex $c000
+    byte val = ^addr;  ' Read value from $c000 (PEEK)
+    ^val = 0;          ' Set value at $c000 to zero (POKE)
+
+### Parenthesis
+Parenthesis may be used to control the order of evaluation, for example:
+
+    pr.dec (10+2)*3;   ' Prints 36
+    pr.dec 10+2*3;     ' Prints 16
+
+### Operator Precedence
+
+| Precedence Level | Operators          | Example  | Example CBM |
+| ---------------- | ------------------ | -------- | ----------- |
+| 11 (Highest)     | Prefix Plus        | +a       |             |
+|                  | Prefix Minus       | -a       |             |
+|                  | Prefix Star        | *a       |             |
+|                  | Prefix Caret       | ^a       |             |
+|                  | Prefix Logical Not | !a       |             |
+|                  | Prefix Bitwise Not | ~a       | .a          |
+| 10               | Power of           | a ^ b    |             |
+|                  | Divide             | a / b    |             |
+|                  | Multiply           | a * b    |             |
+|                  | Modulus            | a % b    |             |
+| 9                | Add                | a + b    |             |
+|                  | Subtract           | a - b    |             |
+| 8                | Left Shift         | a << b   |             |
+|                  | Right Shift        | a >> b   |             |
+| 7                | Greater Than       | a > b    |             |
+|                  | Greater Than Equal | a >= b   |             |
+|                  | Less Than          | a < b    |             |
+|                  | Less Than Equal    | a <= b   |             |
+| 6                | Equality           | a == b   |             |
+|                  | Inequality         | a != b   |             |
+| 5                | Bitwise And        | a & b    |             |
+| 4                | Bitwise Xor        | a ! b    |             |
+| 3                | Bitwise Or         | a \|  b  | a # b       |
+| 2                | Logical And        | a && b   |             |
+| 1 (Lowest)       | Logical Or         | a \|\| b | a ## b      |
+
+
 ## Flow Control
 
 EightBall supports a 'structured' programming style by providing multi-line `if`/`then`/`else` conditionals, `for` loops and `while` loops.
