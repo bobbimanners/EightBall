@@ -423,4 +423,60 @@ Variables are shown in tabular form.  The letter 'b' indicates byte type, while 
 
 The free space available for variables and for program text is shown on the console.
 
+## Input and Output
+
+Only console I/O is supported at present.  File I/O is planned for a later release.
+
+### Console Output
+
+#### pr.msg
+Prints a literal string to the console:
+
+    pr.msg "Hello world"
+
+#### pr.dec
+Prints an unsigned decimal value to the console:
+
+    pr.dec 123/10
+
+#### pr.dec.s
+Prints a signed decimal value to the console:
+
+    pr.dec.s 12-101
+
+#### pr.hex
+Prints a hexadecimal value to the console (prefixed with '$'):
+
+    pr.hex 1234
+
+#### pr.nl
+Prints a newline to the console:
+
+    pr.nl
+
+#### pr.str
+Prints a byte array as a string to the console.  The string is null terminated (so printing stops at the first 0 character):
+
+    pr.str A; ' A is a byte array
+
+### Console Input
+
+#### kbd.ch
+Allows a single character to be read from the keyboard.  Be careful - this function assumes the argument passed to it a pointer to a byte value into which the character may be stored.
+
+    byte c = 0
+    while 1
+      kbd.ch &c
+      pr.ch c
+    endwhile
+
+#### kbd.ln
+Allows a line of input to be read from the keyboard and to be stored to an array of byte values.  This statement takes two arguments - the first is an array of byte values into which to write the string, the second is the maximum number of bytes to write.
+
+    byte buffer[100] = 0;
+    kbd.ln buffer, 100
+    pr.msg "You typed> "
+    pr.str buffer
+    pr.nl
+
 
