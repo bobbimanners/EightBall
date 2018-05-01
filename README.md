@@ -269,4 +269,48 @@ If you wish to comment after a statement, note that a semicolon is required to s
 
     pr.msg "Hello there"; ' Say hello!!!
 
+## Bits and Pieces
+
+### Run Stored Program
+Simple:
+
+    run
+
+Program runs until it hits an `end` statement, an error occurs or it is interrupted by the user.
+
+### Compile Stored Program
+
+    comp
+
+The program in memory is compiled to EightBall VM bytecode.  This is written to a file `bytecode`.
+
+The `bytecode` file may be executed using the EightBall Virtual Machine that is part of this package.
+
+### Quit EightBall
+Easy:
+
+    quit
+
+Returns to ProDOS on Apple II, or to CBM BASIC on C64/VIC20.
+
+### Clear Stored Program
+
+    new
+
+### Clear All Variables
+
+    clear
+
+### Show All Variables
+
+    vars
+
+Variables are shown in tabular form.  The letter 'b' indicates byte type, while 'w' indicates word type.  For scalar variables, the value is shown.  For arrays, the dimension(s) are shown.
+
+### Show Free Space
+
+    free
+
+The free space available for variables and for program text is shown on the console.
+
 
