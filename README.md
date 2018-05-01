@@ -507,7 +507,9 @@ Argument passing is by value, which means that `withArgs` can modify `flag`, `va
 
 ### Function Invocation
 
-Subroutines may be invoked within an expression.  For example, the following subroutine:
+Subroutines may be invoked within an expression.  In this case, the subroutine is executed and the value returned is evaluated within the expression in which it appears.
+
+For example, the following subroutine:
 
     sub adder(word a, word b)
       return a+b
@@ -517,7 +519,12 @@ Could be used in an expression like this:
 
     pr.dec adder(10, 5); ' Prints 15
 
-Functions may invoke themselves recursively (but you will run out of stack quite fast!)
+or like this:
+
+    word res = adder(2, 3);
+    pr.dec res; ' Prints 5
+
+Functions may invoke themselves recursively.
 
 ### Passing by Reference
 
@@ -534,7 +541,7 @@ Then to call it:
 
 This code takes the address of variable `result` using the ampersand operator and passes it to subroutine `adder` as `resptr`.  The subroutine then uses the star operator to write the result of the addition of the first two arguments (10 + 20 in this example) to the word pointed to by `resptr`.
 
-Unlike C, there are no special pointer types.  Pointers must be stored in a `word` variable, since they do not fit in a `byte`.
+Unlike C, there are no special pointer types.  Pointers must be stored in a `word` variable, since they do not fit in a `byte`.  Pointers are dereferenced using the * operator to reference words or the ^ operator to reference bytes.
 
 ### Passing an Array by Reference
 
