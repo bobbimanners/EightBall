@@ -77,12 +77,20 @@ eightball.system: eightball_a2e.o eightballutils_a2e.o
 ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
 	~/Personal/Development/cc65/bin/ld65 -m 8ballvma2e.map -o ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o ~/Personal/Development/cc65/lib/apple2enh.lib
 
-test.d64: 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg
+unittest.8bp: unittest.8b
+	tr \\100-\\132 \\300-\\332 <unittest.8b | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
+
+sieve4.8bp: sieve4.8b
+	tr \\100-\\132 \\300-\\332 <sieve4.8b | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII
+
+test.d64: 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg unittest.8bp sieve4.8bp
 	c1541 -format eb,00 d64 test.d64
 	c1541 -attach test.d64 -write 8ball20.prg
 	c1541 -attach test.d64 -write 8ballvm20.prg
 	c1541 -attach test.d64 -write 8ball64.prg
 	c1541 -attach test.d64 -write 8ballvm64.prg
+	c1541 -attach test.d64 -write unittest.8bp unit.8b,s
+	c1541 -attach test.d64 -write sieve4.8bp sieve4.8b,s
 
 test.dsk: eightball.system ebvm.system sieve4.8b
 	java -jar ~/Desktop/Apple2/AppleCommander-1.3.5.jar  -d test.dsk e8ball.system

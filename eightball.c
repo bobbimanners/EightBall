@@ -4037,7 +4037,11 @@ unsigned char parseline()
             break;
         case TOK_PRNL:
             if (compile) {
+#ifdef CBM
+                emitldi(13);
+#else
                 emitldi(10);
+#endif
                 emit(VM_PRCH);
             } else {
                 printchar('\n');
@@ -4727,17 +4731,17 @@ main()
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     revers(1);
-    print("      ***    EIGHTBALL V0.53   ***     \n");
+    print("      ***    EIGHTBALL V0.54   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
 #elif defined(C64)
-    print("      ***    EightBall v0.53   ***      ");
+    print("      ***    EightBall v0.54   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
 #elif defined(VIC20)
     /* Looks great in 22 cols! */
-    print("*** EightBall v0.53****** (c)Bobbi, 2017 ***\n\n");
+    print("*** EightBall v0.54****** (c)Bobbi, 2017 ***\n\n");
 #else
-    print("      ***    EightBall v0.53   ***     \n");
+    print("      ***    EightBall v0.54   ***     \n");
     print("      ***    (c)Bobbi, 2018    ***     \n\n");
 #endif
 
