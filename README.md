@@ -10,7 +10,7 @@ Includes:
 - Virtual Machine
 
 # Table of Contents
-- [Intro](#Intro)
+- [Intro](#intro)
 - [EightBall Language Reference and Tutorial](#eightball-language-reference-and-tutorial)
     - [Variables](#variables)
     - [Expressions](#expressions)
@@ -21,6 +21,8 @@ Includes:
     - [Input and Output](#input-and-output)
 - [Line Editor](#line-editor)
 - [EightBall Compiler and Virtual Machine](#eightball-compiler-and-virtual-machine)
+    - [VM Internals](#vm-internals)
+    - [Interpreter/Compiler Internals](#interpreter-compiler-internals)
 - [Code Examples](#code-examples)
 
 # Intro
