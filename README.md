@@ -545,7 +545,9 @@ Unlike C, there are no special pointer types.  Pointers must be stored in a `wor
 
 Here is an example of using a pointer to byte:
 
-    call poke(1234, 10)
+    word xx = 0
+    call poke(&xx, 10)
+    pr.dec xx; pr.nl;   ' Should print 10
     end
     
     sub poke(word addr, byte val)
