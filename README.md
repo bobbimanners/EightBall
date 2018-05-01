@@ -467,10 +467,26 @@ When `myFirstSubroutine` hits a `return` statement, the flow of execution will r
 
 Each subroutine has its own local variable scope.  If a local variable is declared with the same name as a global variable, the global will not be available within the scope of the subroutine.  When the subroutine returns, the local variables are destroyed.
 
+    byte val = 10; ' Global byte variable
     sub myThirdSubroutine()
-      word w[10] = 0;  ' Local array
+      byte w[10] = 0;  ' Local array
+      byte i = 0; ' Local byte iterator
+      for i=0 : 9
+        w[i] = val; ' Using both local and global variables
+      endfor
     endsub
 
+Just like in C, a local variable can 'hide' a global of the same name:
+
+    word hideme = 10;
+    call obscuredByClouds()
+    end
+    
+    sub obscuredByClouds()
+      word hideme = 100;
+      pr.dec hideme; pr.nl; ' Prints 100 (val of local), not 10 (val of global)
+    endsub
+    
 ### Argument Passing
 
 Subroutines may take `byte` or `word` arguments, using the following syntax:
