@@ -701,6 +701,8 @@ The EightBall Virtual machine has the following features:
 
 The evaluation stack is used for all computations.  The VM offers a variety of instructions for maniplating the evaluation stack.  All calculations, regardless of the type of the variables involved, is performed using 16 bit arithmetic.
 
+For shorthand, we define the names `X`, `Y`, `Z`, `T` for the top four slots in the evaluation stack.  This notation is stolen from the world of HP RPN calculators.
+
 The call stack is used for all memory allocation within the virtual machine, as follows:
 - Global variables
 - Subroutine parameters
@@ -710,7 +712,65 @@ The call stack is used for all memory allocation within the virtual machine, as 
 
 ### VM Instructions
 
-...
+| Instruction | Description                                                         |  
+|-------------|---------------------------------------------------------------------|
+| END         | Terminate execution                                                 |
+| LDI         | Pushes the following 16 bit word to the evaluation stack            |
+| LDAW        | Replaces X with 16 bit value pointed to by X.                       |
+| LDAB        | Replaces X with 8 bit value pointed to by X.                        |
+| STAW        | Stores 16 bit value Y in addr pointed to by X. Drops X and Y.       |
+| STAB        | Stores 8 bit value Y in addr pointed to by X. Drops X and Y.        |
+| LDRW        | Replaces X with 16 bit value pointed to by `X+FP+1`.                |
+| LDRB        | Replaces X with 8 bit value pointed to by `X+FP+1`.                 |
+| STRW        | Stores 16 bit value Y in addr pointed to by `X+FP+1`. Drops X and Y.|
+| STRB        | Stores 8 bit value Y in addr pointed to by `X+FP+1`. Drops X and Y. |
+| SWP         | Swaps X and Y                                                       |
+| DUP         | Duplicates X -> X, Y                                                |
+| DUP2        | Duplicates X -> X,Z; Y -> Y,T                                       |
+| DROP        | Drops X                                                             |
+| OVER        | Duplicates Y -> X,Z                                                 |
+| PICK        | Duplicates stack level specified in `X+1` -> X                      |
+| POPW        | Pop 16 bit value from call stack, push onto eval stack [X]          |
+| POPB        | Pop 8 bit value from call stack, push onto eval stack [X]           |
+| PSHW        | Push 16 bit value in X onto call stack.  Drop X.                    |
+| PSHB        | Push 8 bit value in X onto call stack.  Drop X.                     |
+| SPTOFP      | Copy stack pointer to frame pointer. (Enter function scope)         |
+| FPTOSP      | Copy frame pointer to stack pointer. (Release local vars)           |
+| RTOA        | Convert FP-relative address in X to absolute address                |
+| INC         | `X = X+1`.                                                          |
+| DEC         | `X = X-1`.                                                          |
+| ADD         | `X = Y+X`.  Y is dropped.                                           |
+| SUB         | `X = Y-X`.  Y is dropped.                                           |
+| MUL         | `X = Y*X`.  Y is dropped.                                           |
+| DIV         | `X = Y/X`.  Y is dropped.                                           |
+| MOD         | `X = Y%X`.  Y is dropped                                     .      |
+| NEG         | `X = -X`                                                            |
+| GT          | `X = Y>X`.  Y is dropped.                                           |
+| GTE         | `X = Y>=X`. Y is dropped.                                           |
+| LT          | `X = Y<X`.  Y is dropped.                                           |
+| LTE         | `X = Y<=X`. Y is dropped.                                           |
+| EQL         | `X = Y==X`. Y is dropped.                                           |
+| NEQL        | `X = Y!=X`. Y is dropped.                                           |
+| AND         | `X = Y&&X`. Y is dropped.                                           |
+| OR          | `X = Y||X`. Y is dropped.                                           |
+| NOT         | `X = !X`                                                            |
+| BAND        | `X = Y&X`. Y is dropped.                                            |
+| BITOR       | `X = Y|X`. Y is dropped.                                            |
+| BITXOR      | `X = Y^X`. Y is dropped.                                            |
+| BITNOT      | `X = ~X`.                                                           |
+| LSH         | `X = Y<<X`. Y is dropped.                                           |
+| RSH         | `X = Y>>X`. Y is dropped.                                           |
+| JMP         | Jump to address X.  Drop X.                                         |
+| BRC         | If `Y!= 0`, jump to address X.  Drop X, Y.                          |
+| JSR         | Push PC to call stack.  Jump to address X.  Drop X.                 |
+| RTS         | Pop call stack, jump to the address popped.                         |
+| PRDEC       | Print 16 bit decimal in X.  Drop X                                  |
+| PRHEX       | Print 16 bit hex in X.  Drop X                                      |
+| PRCH        | Print character in X.  Drop X                                       |
+| PRSTR       | Print null terminated string pointed to by X.  Drop X               |
+| PRMSG       | Print literal string at PC (null terminated)                        |
+| KBDCH       | Push character from keyboard onto eval stack                        |
+| KBDLN       | Obtain line from keyboard and write to memory pointed to by Y. X contains the max number of bytes in buf. Drop X, Y. |         |
 
 ### VM Memory Organization
 
