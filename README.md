@@ -63,7 +63,7 @@ Disk images:
 
 ## Apple II
 
-I used the well-known tool ADP to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
+I used ADTPro to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
 
 It is also possible to run the EightBall system using the MAME Apple II emulation under Linux.
 
@@ -162,17 +162,18 @@ I am building EightBall using `cc65` v2.15 on Ubuntu Linux.
 
 The Linux version of EightBall is currently being built using `gcc` v7.3.0.  It should build with whatever version of `gcc` you have to hand.
 
-In order to build Apple diskette images I use the open source Apple Commander tool.
+In order to build Apple diskette images I use the open source Apple Commander tool.  ADTPro is an awesome tool for transferring disk images to a real Apple II via a serial (RS-232) cable.
 
 In order to build Commodore 1541 diskette images, I use the `c1541` tool that comes with the open source VICE emulator.
 
 I find the VICE emulator useful for testing on the Commodore C64 and VIC20 pathforms.  MAME provides a useful Apple //e enhanced emulation.
 
 Links to these projects:
-- [cc65](http://github/com/cc65/cc65)
+- [cc65](http://github.com/cc65/cc65)
 - [Apple Commander](http://applecommander.sourceforge.net/)
 - [VICE](http://vice-emu.sourceforge.net/)
 - [MAME](http://mamedev.org/)
+- [ADTPro](http://adtpro.com/)
 
 ## Build Procedure
 I use Ubuntu Linux (18.04 at the current time.)  It should also be possible to build the project using any relatively recent Linux distribution.
