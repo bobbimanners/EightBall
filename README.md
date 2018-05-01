@@ -575,4 +575,27 @@ Then you can run the VM program for your platform.  It will load the bytecode fr
 
 ## VM Internals
 
+# Code Examples
+
+## Recursive Factorial
+
+This example shows how EightBall can support recursion.  I should point out that it is much better to do this kind of thing using iteration, but this is a fun simple example:
+
+    pr.dec fact(3); pr.nl
+    end
+
+    sub fact(word val)
+      pr.msg "fact("; pr.dec val; pr.msg ")"; pr.nl
+      if val == 0
+        return 1
+      else
+        return val * fact(val-1)
+      endif
+    endsub
+
+`fact(3)` calls `fact(2)`, which calls `fact(1)`, then finally `fact(0)`.
+
 See `eightballvm.h` for technical details.
+
+## Prime Number Sieve
+
