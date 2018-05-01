@@ -55,7 +55,7 @@ This is a free software / open source project and I invite anyone interested to 
 # Getting Started
 There are executables and disk images available to download for Apple II, Commodore 64 and VIC-20.  These may be run on real hardware or one of the many emulators that are available.
 
-The language itself is documented in these wiki pages.  The best way to learn is to study example programs.
+The language itself is documented in this file.  The best way to learn is to study example programs.
 
 Disk images:
 - Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
