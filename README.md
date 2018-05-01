@@ -599,3 +599,48 @@ See `eightballvm.h` for technical details.
 
 ## Prime Number Sieve
 
+Here is the well-known Sieve of Eratosthenes algorithm for finding prime numbers, written in EightBall:
+
+    ' Sieve of Eratosthenes                                                         
+                                                                                
+    ' Globals                                                                       
+    byte nr = 10                                                                    
+    word n = nr * nr                                                                
+    byte A[100] = 1 ' Has to be a literal                                                                   
+                                                                                
+    pr.msg "Sieve of Eratosthenes ..."; pr.nl                                       
+    call doall()                                                                    
+    end                                                                             
+                                                                                
+    sub doall()                                                                     
+      call sieve()                                                                  
+      call printresults()                                                           
+    endsub                                                                       
+                                                                                
+    sub sieve()                                                                     
+      word i = 0; word j = 0                                                        
+      for i = 2 : (nr - 1)                                                          
+        if A[i]                                                                     
+          j = i * i                                                                 
+          while (j < n)                                                             
+            A[j] = 0                                                                
+            j = j + i                                                               
+          endwhile                                                                  
+        endif                                                                       
+      endfor                                                                        
+    endsub                                                                        
+                                                                                
+    sub printresults()                                                              
+      word i = 0                                                                    
+      for i = 2 : (n - 1)                                                           
+        if A[i]                                                                     
+          if i > 2                                                                  
+            pr.msg ", "                                                             
+          endif                                                                     
+          pr.dec i                                                                  
+        endif                                                                       
+      endfor                                                                        
+      pr.msg "."                                                                    
+    endsub                                                                        
+                                                                                
+  
