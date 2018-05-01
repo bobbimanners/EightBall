@@ -160,6 +160,11 @@ I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if
 
 The Linux version of EightBall is currently being built using gcc 7.3.0.
 
+## Unit Tests
+There is a unit test script `unittest.8b` written in EightBall.
+
+It is quite large so it does not load in all 8-bit platforms.  Deleting the comments would help!  However I usually test using the Linux EightBall environment, so large scripts are less of a problem.  Currently the script loads and runs on C64, but not Apple II or VIC20 (due to lack of memory for the source code.)
+
 # EightBall Language Reference and Tutorial
 
 ## Variables
