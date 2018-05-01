@@ -59,8 +59,8 @@ There are executables and disk images available to download for Apple II, Commod
 The language itself is documented in this file.  The best way to learn is to study example programs.
 
 Disk images:
-- Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
-- test.d64 - Commodore 1541 disk images with EightBall for VIC20 and C64.
+- `test.dsk` - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
+- `test.d64` - Commodore 1541 disk images with EightBall for VIC20 and C64.
 
 ## Apple II
 I used ADTPro to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
