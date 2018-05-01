@@ -40,3 +40,32 @@ The language itself is documented in these wiki pages.  The best way to learn is
 I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
 
 The Linux version of EightBall is currently being built using gcc 6.3.0.
+
+### Simple Types
+
+EightBall has two basic types: byte (8 bits) and word (16 bits).
+
+    word counter = 1000
+    byte xx = 0
+
+Variables must be declared before use.  Variables **must** be initialized.
+
+The first four letters of the variable name are significant, any letters after that are simply ignored by the parser.
+
+Variables of type word are also used to store pointers (there is no pointer type in EightBall).
+
+### Arrays
+
+Arrays of byte and word may be declared as follows.  The mandatory initializer is used to initialize all elements:
+
+    word myArray[100] = 1
+    byte storage[10] = 0
+
+**_At present, only 1D arrays are supported, but this will be expanded in future releases._**
+
+**Array dimensions must be literal constants. Expressions are not parsed in this case.**
+
+Array elements begin from 0, so the array `storage` above has elements from 0 to 9.
+
+    storage[0] = 0;  ' First element
+    storage[9] = 99; ' Last element
