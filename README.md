@@ -11,6 +11,8 @@ Includes:
 
 # Table of Contents
 - [Intro](#intro)
+- [Getting Started](#getting-started)
+- [Building the Code](#building-the-code)
 - [EightBall Language Reference and Tutorial](#eightball-language-reference-and-tutorial)
     - [Variables](#variables)
     - [Expressions](#expressions)
@@ -45,7 +47,12 @@ The following 6502-based systems are currently supported:
 * Commodore 64 - EightBall should run on any C64.
 * Commodore VIC-20 - EightBall runs on a VIC-20 with 32K of additional RAM.
 
-## Getting Started
+## Licence
+Free Software licenced under GPL v3.
+Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
+
+This is a free software / open source project and I invite anyone interested to participate via GitHub.
+# Getting Started
 There are executables and disk images available to download for Apple II, Commodore 64 and VIC-20.  These may be run on real hardware or one of the many emulators that are available.
 
 The language itself is documented in these wiki pages.  The best way to learn is to study example programs.
@@ -54,7 +61,7 @@ Disk images:
 - Test.dsk - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
 - test.d64 - Commodore 1541 disk images with EightBall for VIC20 and C64.
 
-### Apple II
+## Apple II
 
 I used the well-known tool ADP to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
 
@@ -74,7 +81,7 @@ The compiled code is written to the file `bytecode` on the floppy diskette conta
 
 If you then invoke the EightBall Virtual Machine `EBVM.SYSTEM`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
 
-### Commodore 64
+## Commodore 64
 
 For the Commodore 64, the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
 
@@ -102,7 +109,7 @@ LOAD"8BALLVM64.PRG",8
 RUN
 ```
 
-### VIC 20
+## VIC 20
 
 For the Commodore VIC20 (plus 32K expansion RAM), the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
 
@@ -130,7 +137,7 @@ LOAD"8BALLVM20.PRG",8
 RUN
 ```
 
-### Simple Test Program
+## Simple Test Program
 
 Here is a simple test program you can enter to play with EightBall when getting started:
 
@@ -148,17 +155,22 @@ I have included the line editor commands to begin inserting text `:i0` and to le
 
 You can list the program using the `:l` command and run it using the EightBall interpreter using the `run` command.
 
-## Licence
-
-Free Software licenced under GPL v3.
-Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
-
-This is a free software / open source project and I invite anyone interested to participate via GitHub.
+# Building the Code
 
 ## Build Toolchain
 I am building EightBall using cc65 v2.15 on Ubuntu Linux.  Please let me know if you need help with compilation.
 
 The Linux version of EightBall is currently being built using gcc 7.3.0.
+
+## Build Procedure
+...
+
+## Other Useful Tools
+The following are not strictly build dependencies, but there are a number of useful utilities to be aware of:
+- c1541
+- Apple Commander
+- VICE
+- MAME
 
 ## Unit Tests
 There is a unit test script `unittest.8b` written in EightBall.
