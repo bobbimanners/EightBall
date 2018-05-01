@@ -687,6 +687,42 @@ Then you can run the VM program for your platform.  It will load the bytecode fr
 
 ## VM Internals
 
+### VM Architecture
+
+The EightBall Virtual machine has the following features:
+- 16 level evaluation stack.  Each cell on the evaluation stack is 16 bits.
+- Call stack.  This stack is byte-orientated (rather than word-orientated like the evaluation stack).  It occupies most of system memory.
+- Program counter - 16 bits
+- Stack pointer - 16 bits - used to address the call stack
+- Frame pointer - 16 bits - makes addressing locals and parameters easier for subroutine code
+
+The evaluation stack is used for all computations.  The VM offers a variety of instructions for maniplating the evaluation stack.  All calculations, regardless of the type of the variables involved, is performed using 16 bit arithmetic.
+
+The call stack is used for all memory allocation within the virtual machine, as follows:
+- Global variables
+- Subroutine parameters
+- Local variables
+- Return address when calling subroutine
+- Parent frame pointer - used for unwinding the stack on `return` / `endsub`
+
+### VM Instructions
+
+...
+
+### VM Memory Organization
+
+The call stack grows down from top of memory.  The evaluation stack is fixed in low memory (32 bytes).  In an optimized virtual machine implementation, this would be placed in zero page.
+
+## Compiler Internals
+
+### Relationship of Compiler and Interpreter
+
+...
+
+### Compiler Memory Organization
+
+...
+
 # Code Examples
 
 ## Recursive Factorial
