@@ -69,3 +69,41 @@ Array elements begin from 0, so the array `storage` above has elements from 0 to
 
     storage[0] = 0;  ' First element
     storage[9] = 99; ' Last element
+    
+EightBall supports a 'structured' programming style by providing multi-line `if`/`then`/`else` conditionals, `for` loops and `while` loops.
+
+Note that the `goto` statement is not supported!
+
+### Conditionals
+Syntax is as follows:
+
+    if z == 16
+      pr.msg "Sweet sixteen!"
+      pr.nl
+    endif
+Or, with the optional `else` clause:
+
+    if x < 2
+      pr.msg "okay"
+      pr.nl
+    else
+      pr.msg "too many"; pr.nl
+      ++toomany;
+    endif
+
+### For Loops
+Syntax is as per the following example:
+
+    for count = 1 : 10
+      pr.dec count
+      pr.nl
+    endfor
+
+### While Loops
+These are quite flexible, for example:
+
+    while bytes < 255
+      call getbyte()
+      bytes = bytes + 1
+    endwhile
+
