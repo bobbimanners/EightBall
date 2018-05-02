@@ -964,16 +964,20 @@ The compiler has a simple allocator (managed by `rt_push_callstack()` and `rt_po
 #### Subroutines: Entry and Return, Local Variables and Parameters
 The EightBall Virtual Machine has a number of features which are intended to make it easier to implement subroutine call and return, argument passing etc.  In particular, there is a special frame pointer (FP) register which is useful for easily accessing parameter and locals.
 
-Before generating code to enter a subroutine, the compiler ensures code has been generated to evaluate any parameters.  The first parameter value should be at the top of the eval stack (X), the second parameter in the second level (Y) etc.  Then the compiler emits a `JSR` instruction to call the subroutine entry point.  The virtual machine will automatically store the return address on the VM call stack and the VM program counter will be set to the entry point.
+Before generating code to enter a subroutine, the compiler ensures code has been generated to evaluate any parameters and push the result to the call stack.  Then the compiler emits a `JSR` instruction to call the subroutine entry point.  The virtual machine will automatically store the return address on the VM call stack and the VM program counter will be set to the entry point.
 
 On entry to the subroutine, the compiler will emit VM instruction `SPFP` which pushes the current value of the frame pointer (FP) to the VM call stack and copies the stack pointer (SP) to the frame pointer (FP).  This sets up the call frame allowing us to easily refer to the parameters and the local variables.
 
-...
+The virtual machine makes this simple by providing special instructions `LDRW`, `LDRB`, `STRW` and `STRB` which load and store `word` and `byte` values to memory using addressing *relative* to the frame pointer FP.  In this relative addressing mode, the parameters which were pushed to the call stack before entry have small *positive* valued addresses (FP + offset).  Local variables are pushed to the call stack, which grows down as usual.  As a result, the local variables will have small *negative* addresses relative to the frame pointer (FP - offset).
+
+At the same time, absolute addressing via instructions `LDAW`, `LDAB`, `STAW` and `STAB` can be used to access the global variables.
+
+On exit from the subroutine, the compiler emits code to evaluate the return value and leave it on the evaluation stack in the topmost slot (X).  It then emits a `FPSP` instruction which copies the frame pointer (FP) to the stack pointer (SP) and restores the value of the frame pointer by popping a word from the call stack.  Copying FP to SP has the effect of immediately releasing all of the space (local variables) allocated in the topmost stack frame.  The stack pointer is then positioned to where the frame pointer is topmost, so it is available to be popped and restored to FP.  The overall effect is to unwind the stack back to the calling stack frame.
+
+The return value is left on the evaluation stack.  If the calling code does not use it, the compiler must issue a `DROP` instruction to discard it.
 
 #### Subroutine Call Linkage
 The compiler also maintains a linked list of subroutine calls and a linked list of subroutine entry points which are used for the final step of compilation - internal linkage.  Subroutine calls and entry points are both represented using records of type `sub_t`, each of which contain the first eight characters of the subroutine name, a two byte address pointer and a two byte pointer to the next record.  Currently, the compiler allocates these linked lists (anchored by `callsbegin` and `subsbegin`) in HEAP2, after the source code.  This space is not freed until HEAP2 is purged using the `new` command, so some space is lost with each use of the `comp` command.
-
-
 
 ### Compiler Address Fixups
 
