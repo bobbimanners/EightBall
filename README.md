@@ -50,7 +50,6 @@ The following 6502-based systems are currently supported:
 
 ## Licence
 Free Software licenced under GPL v3.
-Please see [the Wiki](https://github.com/bobbimanners/EightBall/wiki) for full documentation!!
 
 This is a free software / open source project and I invite anyone interested to participate via GitHub.
 # Getting Started
@@ -606,7 +605,7 @@ is identical to this:
 
 Semicolons **must** be used to separate multiple statements on a line (even loop contructs as seen in the first example above.)
 
-Indentation of the code (as shown in the examples in this Wiki) is optional, but encouraged.
+Indentation of the code (as shown in the examples in this manual) is optional, but encouraged.
 
 ### Comments
 
