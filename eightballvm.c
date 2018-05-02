@@ -56,6 +56,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef A2E
+#include <conio.h>
+#endif
+
 #define EVALSTACKSZ  16
 
 /*
@@ -744,7 +748,15 @@ void load()
 
 int main()
 {
+    print("EightBallVM v" VERSIONSTR "\n");
+    print("Bobbi, 2018\n\n");
+    print("Loading bytecode: ");
     load();
+#ifdef A2E
+    clrscr();
+#elif defined(CBM)
+    printchar(147); /* Clear */
+#endif
     execute();
     return 0;
 }

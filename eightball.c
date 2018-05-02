@@ -86,6 +86,8 @@
 //#define EXIT(arg) {printf("%d\n",__LINE__); exit(arg);}
 #define EXIT(arg) exit(arg)
 
+#define VARNUMCHARS 4  /* First 4 chars of variable name are significant */
+#define SUBRNUMCHARS 8 /* First 8 chars of variable name are significant */
 
 /*
  ***************************************************************************
@@ -983,7 +985,7 @@ unsigned char P()
 {
     struct lineofcode *oldcurrent;
     int oldcounter;
-    char key[5];
+    char key[VARNUMCHARS];
     int idx;
     char *writePtr;
     unsigned char addressmode;  /* Set to 1 if there is '&' */
@@ -1018,14 +1020,16 @@ unsigned char P()
          */
         writePtr = readbuf;
         while (isalphach(*txtPtr) || isdigitch(*txtPtr)) {
-            if (arg < 4) {
+            if (arg < VARNUMCHARS) {
                 key[arg++] = *txtPtr;
             }
             *writePtr = *txtPtr;
             ++txtPtr;
             ++writePtr;
         }
-        key[arg] = '\0';
+	if (arg < VARNUMCHARS) {
+            key[arg] = '\0';
+	}
         *writePtr = '\0';
 
         idx = -1;
@@ -1213,8 +1217,9 @@ unsigned char eval(unsigned char checkNoMore, int *val)
  * Everything below is the rest of the language implementation.
  */
 
-unsigned char *heap1Ptr;        /* BLK5 heap */
-unsigned char *heap2Ptr;        /* BLK3 heap */
+unsigned char *heap1Ptr;        /* Arena 1: top-down stack */
+unsigned char *heap2PtrTop;     /* Arena 2: top-down stack */
+unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 
 #ifdef A2E
 
@@ -1235,7 +1240,11 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-#define HEAP2LIM (char*)0x8600 /* ADJUST THIS TO NOT TRASH THE CODE */
+//#define HEAP2LIM (char*)0x8600
+#define HEAP2LIM (char*)0x8b00 // SET EXPERIMENTALLY
+                                 /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+                                  * TRASH THE CODE, WHICH LOADS FROM $2000 UP
+                                  * USE THE MAPFILE! */
 
 #elif defined(C64)
 
@@ -1254,9 +1263,11 @@ unsigned char *heap2Ptr;        /* BLK3 heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
-#define HEAP2LIM (char*)0x6a00  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
-                                 * TRASH THE CODE, WHICH LOADS FROM $0800 UP
-                                 * USE THE MAPFILE! */
+//#define HEAP2LIM (char*)0x6a00
+#define HEAP2LIM (char*)0x7000 // SET EXPERIMENTALLY
+                                 /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+                                  * TRASH THE CODE, WHICH LOADS FROM $0800 UP
+                                  * USE THE MAPFILE! */
 
 
 #elif defined(VIC20)
@@ -1304,10 +1315,17 @@ unsigned char heap1[HEAP1SZ];
 #define CLEARHEAP1() heap1Ptr = HEAP1TOP
 
 /*
- * Clears heap 2.  Must call this before using alloc2().
+ * Clears heap 2 top-down stack.  Must call this before using alloc2top().
  */
 #ifdef CC65
-#define CLEARHEAP2() heap2Ptr = HEAP2TOP
+#define CLEARHEAP2TOP() heap2PtrTop = HEAP2TOP
+#endif
+
+/*
+ * Clears heap 2 bottom-up heap.  Must call this before using alloc2bttm().
+ */
+#ifdef CC65
+#define CLEARHEAP2BTTM() heap2PtrBttm = HEAP2LIM
 #endif
 
 /*
@@ -1372,9 +1390,9 @@ void rt_pop_callstack(unsigned int bytes)
 }
 
 /*
- * Allocate bytes on heap 2.
+ * Allocate bytes on the stack at the top of heap 2.
  */
-void *alloc2(unsigned int bytes)
+void *alloc2top(unsigned int bytes)
 {
 #ifdef __GNUC__
     void *p = malloc(bytes);
@@ -1384,12 +1402,34 @@ void *alloc2(unsigned int bytes)
     }
     return p;
 #else
-    if ((heap2Ptr - bytes) < HEAP2LIM) {
+    if ((heap2PtrTop - bytes) < heap2PtrBttm) {
         print("No mem!\n");
         longjmp(jumpbuf, 1);
     }
-    heap2Ptr -= bytes;
-    return heap2Ptr;
+    heap2PtrTop -= bytes;
+    return heap2PtrTop;
+#endif
+}
+
+/*
+ * Allocate bytes on the heap at the bottom of heap 2.
+ */
+void *alloc2bttm(unsigned int bytes)
+{
+#ifdef __GNUC__
+    void *p = malloc(bytes);
+    if (!p) {
+        print("No mem!\n");
+        longjmp(jumpbuf, 1);
+    }
+    return p;
+#else
+    if ((heap2PtrBttm + bytes) > heap2PtrTop) {
+        print("No mem!\n");
+        longjmp(jumpbuf, 1);
+    }
+    heap2PtrBttm += bytes;
+    return heap2PtrBttm - bytes;
 #endif
 }
 
@@ -1403,11 +1443,14 @@ int getfreespace1()
 
 /*
  * Return the total amount of free space on heap 2.
+ * This is the space between the bottom of the downwards-growning
+ * stack at the top and the top of the upwards-growing heap at the
+ * bottom.
  */
 #ifdef CC65
 int getfreespace2()
 {
-    return (heap2Ptr - HEAP2LIM + 1);
+    return (heap2PtrTop - heap2PtrBttm + 1);
 }
 #endif
 
@@ -1564,9 +1607,9 @@ unsigned char skipFlag;
  */
 void appendline(char *line)
 {
-    struct lineofcode *loc = alloc2(sizeof(struct lineofcode));
+    struct lineofcode *loc = alloc2bttm(sizeof(struct lineofcode));
 
-    loc->line = alloc2(sizeof(char) * (strlen(line) + 1));
+    loc->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(loc->line, line);
     if (!current) {
         loc->next = NULL;
@@ -1584,9 +1627,9 @@ void appendline(char *line)
  */
 void insertfirstline(char *line)
 {
-    struct lineofcode *loc = alloc2(sizeof(struct lineofcode));
+    struct lineofcode *loc = alloc2bttm(sizeof(struct lineofcode));
 
-    loc->line = alloc2(sizeof(char) * (strlen(line) + 1));
+    loc->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(loc->line, line);
     loc->next = program;
     program = loc;
@@ -1652,7 +1695,7 @@ void changeline(char *line)
 #ifdef __GNUC__
     free(current->line);
 #endif
-    current->line = alloc2(sizeof(char) * (strlen(line) + 1));
+    current->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(current->line, line);
 }
 
@@ -1673,7 +1716,8 @@ void new()
     }
 #else
     /* No need to iterate and free them all, just dump the heap */
-    CLEARHEAP2();
+    CLEARHEAP2TOP();
+    CLEARHEAP2BTTM();
 #endif
     program = NULL;
 }
@@ -1683,14 +1727,14 @@ int calllevel;
 
 /*
  * Entry in the variable table
- * name: first 4 characters as key
+ * name: first VARNUMCHARS characters as key
  * type: encodes the type in the least significant 4 bits (TYPE_WORD or
  *       TYPE_BYTE).  The most significant 4 bits are zero for scalars and
  *       encode the number of dimensions in the case of an array.
  * next: pointer to next vartabent.
  */
 struct vartabent {
-    char name[4];
+    char name[VARNUMCHARS];
     unsigned char type;         /* See above */
     struct vartabent *next;
 };
@@ -1703,11 +1747,11 @@ var_t *varslocal;               /* Local stack frame */
 
 /*
  * Entry in the subroutine table.  This is used by the compiler only.
- * name: first 8 characters as key
+ * name: first SUBRNUMCHARS characters as key
  * addr: address of entry point in compiled code.
  */
 struct subtabent {
-	char name[8];
+	char name[SUBRNUMCHARS];
 	unsigned int addr;
 	struct subtabent *next;
 };
@@ -1738,7 +1782,7 @@ var_t *findintvar(char *name, unsigned char *local)
     /* Search locals */
     ptr = varslocal;
     while (ptr) {
-        if (!strncmp(name, ptr->name, 4)) {
+        if (!strncmp(name, ptr->name, VARNUMCHARS)) {
             *local = 1;
             return ptr;
         }
@@ -1752,7 +1796,7 @@ var_t *findintvar(char *name, unsigned char *local)
     /* Search globals */
     ptr = varsbegin;
     while (ptr && (ptr->name[0] != '-')) {
-        if (!strncmp(name, ptr->name, 4)) {
+        if (!strncmp(name, ptr->name, VARNUMCHARS)) {
             *local = 0;
             return ptr;
         }
@@ -1974,7 +2018,7 @@ unsigned char createintvar(char *name,
         *(int *) ((unsigned char *) v + sizeof(var_t) + sizeof(int)) = sz;
     }
 
-    strncpy(v->name, name, 4);
+    strncpy(v->name, name, VARNUMCHARS);
     v->type = ((numdims & 0x0f) << 4) | type;
     v->next = NULL;
 
@@ -1998,7 +2042,7 @@ void vars_markcallframe()
 {
     ++calllevel;
     varslocal = alloc1(sizeof(var_t) + sizeof(int));
-    strncpy(varslocal->name, "----", 4);
+    strncpy(varslocal->name, "----", VARNUMCHARS);
     varslocal->type = TYPE_WORD;
     varslocal->next = NULL;
     *(getptrtoscalarword(varslocal)) = (int) varsend;   /* Store pointer to previous in value */
@@ -2531,7 +2575,7 @@ unsigned char assignorcreate(unsigned char mode)
     int j;
     int k;
     unsigned char type;
-    char name[5];
+    char name[VARNUMCHARS];
     int i = 0;
     unsigned char numdims = 0;
     unsigned char local = 0;
@@ -2545,12 +2589,14 @@ unsigned char assignorcreate(unsigned char mode)
         return RET_ERROR;
     }
     while (*txtPtr && (isalphach(*txtPtr) || isdigitch(*txtPtr))) {
-        if (i < 4) {
+        if (i < VARNUMCHARS) {
             name[i++] = *txtPtr;
         }
         ++txtPtr;
     }
-    name[i] = '\0';
+    if (i < VARNUMCHARS) {
+        name[i] = '\0';
+    }
 
     i = 0;
     if (*txtPtr == '[') {
@@ -2997,7 +3043,7 @@ unsigned char compareUntil(char *s1, char *s2, char term)
 unsigned char dosubr()
 {
     unsigned char type;
-    char name[4];
+    char name[VARNUMCHARS];
     unsigned char j;
     unsigned char arraymode;
     var_t *v;
@@ -3013,12 +3059,11 @@ unsigned char dosubr()
 
 	/*
 	 * Create entry in subroutine table
-	 * We use heap2 for this because heap1 is used for keeping track
-	 * of the location of the variables in the compiled code.
-	 * TODO: There is no way to free this without deleting all of heap2 (source code)
+	 * Allocate this on the top-down stack in arena 2.  This grows down towards the
+	 * source code, which is growing up from the bottom of arena 2.
 	 */
-        s = alloc2(sizeof(sub_t));
-    	strncpy(s->name, readbuf, 8);
+        s = alloc2top(sizeof(sub_t));
+    	strncpy(s->name, readbuf, SUBRNUMCHARS);
 	s->addr = rtPC;
 	s->next = NULL;
 
@@ -3055,12 +3100,12 @@ unsigned char dosubr()
             }
             txtPtr += 5;
             eatspace();
-            for (j = 0; j < 4; ++j) {
+            for (j = 0; j < VARNUMCHARS; ++j) {
                 name[j] = 0;
             }
             j = 0;
             while (txtPtr && (isalphach(*txtPtr) || isdigitch(*txtPtr))) {
-                if (j < 4) {
+                if (j < VARNUMCHARS) {
                     name[j] = *txtPtr;
                 }
                 ++j;
@@ -3106,7 +3151,7 @@ unsigned char dosubr()
 
             v = alloc1(sizeof(var_t) + sizeof(int));
             *(int *) ((unsigned char *) v + sizeof(var_t)) = 4; // Skip over return address and frame pointer
-            strncpy(v->name, name, 4);
+            strncpy(v->name, name, VARNUMCHARS);
             v->type = ((arraymode & 0x0f) << 4) | type;
             v->next = NULL;
 
@@ -3161,8 +3206,8 @@ unsigned char docall()
     unsigned char type;
     char *p;
     int arg;
-    char name[4];
-    char name2[4];
+    char name[VARNUMCHARS];
+    char name2[VARNUMCHARS];
     unsigned char j;
     unsigned char arraymode;
     var_t *oldvarslocal;
@@ -3178,8 +3223,13 @@ unsigned char docall()
      * Do this before evaluating arguments, which overwrites readbuf
      */
     if (compile) {
-        s = alloc2(sizeof(sub_t));
-        strncpy(s->name, readbuf, 8);
+	 /*
+          * Allocate this on the top-down stack in arena 2.  This grows down
+	  * towards the source code, which is growing up from the bottom of
+	  * arena 2.
+	  */
+        s = alloc2top(sizeof(sub_t));
+        strncpy(s->name, readbuf, SUBRNUMCHARS);
     }
 
     counter = -1;
@@ -3292,12 +3342,12 @@ unsigned char docall()
                         error(ERR_ARG);
                         return RET_ERROR;
                     }
-                    for (j = 0; j < 4; ++j) {
+                    for (j = 0; j < VARNUMCHARS; ++j) {
                         name[j] = 0;
                     }
                     j = 0;
                     while (p && (isalphach(*p) || isdigitch(*p))) {
-                        if (j < 4) {
+                        if (j < VARNUMCHARS) {
                             name[j] = *p;
                         }
                         ++j;
@@ -3366,13 +3416,13 @@ unsigned char docall()
                         /*
                          * Array pass-by-reference
                          */
-                        for (j = 0; j < 4; ++j) {
+                        for (j = 0; j < VARNUMCHARS; ++j) {
                             name2[j] = 0;
                         }
                         j = 0;
                         while (txtPtr && (isalphach(*txtPtr)
                                           || isdigitch(*txtPtr))) {
-                            if (j < 4) {
+                            if (j < VARNUMCHARS) {
                                 name2[j] = *txtPtr;
                             }
                             ++txtPtr;
@@ -3434,9 +3484,6 @@ unsigned char docall()
                     emitldi(0xffff);
                     /*
                      * Create entry in call table
-                     * We use heap2 for this because heap1 is used for keeping track
-                     * of the location of the variables in the compiled code.
-                     * TODO: There is no way to free this without deleting all of heap2 (source code)
                      */
                     s->addr = rtPC - 2;
                     s->next = NULL;
@@ -4121,6 +4168,9 @@ unsigned char parseline()
             emit(VM_END);
 	    linksubs();
             writebytecode();
+#ifndef __GNUC__
+	    CLEARHEAP2TOP(); /* Clear the linkage table */
+#endif
             compile = 0;
             break;
         case TOK_NEW:
@@ -4638,7 +4688,7 @@ void linksubs() {
 	while (call) {
 		sub = subsbegin;
 		
-		while (strncmp(sub->name, call->name, 8)) {
+		while (strncmp(sub->name, call->name, SUBRNUMCHARS)) {
 			sub = sub->next;
 			if (!sub) {
 				error(ERR_LINK);
@@ -4758,7 +4808,8 @@ main()
 
     CLEARHEAP1();
 #ifdef CC65
-    CLEARHEAP2();
+    CLEARHEAP2TOP();
+    CLEARHEAP2BTTM();
 #endif
 
     /* Warm reset goes here */
