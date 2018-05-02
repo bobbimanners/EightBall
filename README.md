@@ -416,7 +416,7 @@ Or, with the optional `else` clause:
       pr.nl
     else
       pr.msg "too many"; pr.nl
-      ++toomany;
+      toomany = toomany + 1;
     endif
 
 ### For Loops
