@@ -25,6 +25,7 @@ Includes:
 - [EightBall Compiler and Virtual Machine](#eightball-compiler-and-virtual-machine)
     - [VM Internals](#vm-internals)
     - [Interpreter/Compiler Internals](#interpreter--compiler-internals)
+- [Data Types](#data-types)
 - [Code Examples](#code-examples)
 
 # Intro
@@ -991,6 +992,16 @@ When compiling `if` / `endif` or `if` . `else`, `endif` conditionals, the compil
 Another situation where address fixups are required is subroutine calls.  When a subroutine is called, a new entry is recorded in the `callsbegin` linked list, containing the beginning of the subroutine name and a pointer to the VM address of the call address to be fixed up.  When a subroutine definition is encountered, a new entry is recorded in the `subsbegin` linked list, again containing the subroutine name but this time with the address of the entry point.
 
 The final step of compilation involves iterating through the `callsbegin` list, looking up each subroutine name in the `subsbegin` list.  If the name is found, then the dummy `$ffff` at the fixup address is replaced with the entry point of the filename.  Otherwise a linkage error is (cryptically) reported.
+
+# Data Types
+A `byte` variable is one byte everywhere.  A `word` variable is two bytes everywhere, except in the Linux interpreter (where is is 32 bit word, 4 bytes.)
+
+| Platform         | Size in Bytes    |
+|------------------|------------------|
+|6502 Interpreter  | word 2, byte 1   |
+|6502 VM           | word 2, byte 1   |
+|Linux Interpreter | word 4, byte 1   |
+|Linux VM          | word 2, byte 1   |
 
 # Code Examples
 
