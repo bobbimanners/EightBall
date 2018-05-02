@@ -53,7 +53,7 @@ The following 6502-based systems are currently supported:
 Free Software licenced under GPL v3.
 
 ## Roadmap
-EightBall is an ongoing development project.  See the project roadmap [here](github.com/bobbimanners/EightBall/wiki/Roadmap).
+EightBall is an ongoing development project.  See the project roadmap [here](https://github.com/bobbimanners/EightBall/wiki/Roadmap).
 
 This is a free software / open source project and I invite anyone interested to participate via GitHub.
 # Getting Started
