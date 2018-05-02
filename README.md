@@ -52,6 +52,9 @@ The following 6502-based systems are currently supported:
 ## Licence
 Free Software licenced under GPL v3.
 
+## Roadmap
+EightBall is an ongoing development project.  See the project roadmap [here](...).
+
 This is a free software / open source project and I invite anyone interested to participate via GitHub.
 # Getting Started
 There are executables and disk images available to download for Apple II, Commodore 64 and VIC-20.  These may be run on real hardware or one of the many emulators that are available.
