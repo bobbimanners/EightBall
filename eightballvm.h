@@ -70,7 +70,7 @@
 enum bytecode {
 	/**** Miscellaneous ********************************************************/
 	VM_END,    /* Terminate execution                                          */
-	/**** Load and Store *******************************************************/
+	/**** Load Immediate *******************************************************/
 	VM_LDIMM,  /* Pushes the following 16 bit word to the evaluation stack     */
 	/* Absolute addressing:                                                    */
        	VM_LDAWORD,/* Replaces X with 16 bit value pointed to by X.                */
@@ -96,6 +96,7 @@ enum bytecode {
 	VM_PSHBYTE,/* Push 8 bit value in X onto call stack.  Drop X.              */
 	VM_SPTOFP, /* Copy stack pointer to frame pointer. (Enter function scope)  */
 	VM_FPTOSP, /* Copy frame pointer to stack pointer. (Release local vars)    */
+	VM_ATOR,   /* Convert absolute address in X to relative address            */
 	VM_RTOA,   /* Convert relative address in X to absolute address            */
 	/**** Integer math *********************************************************/
 	VM_INC,    /* X = X+1.                                                     */
@@ -165,6 +166,7 @@ char *bytecodenames[] = {
 	"PSHB",
 	"SPFP",
 	"FPSP",
+	"ATOR",
 	"RTOA",
 	"INC",
 	"DEC",

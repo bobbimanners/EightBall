@@ -274,6 +274,22 @@ void execute_instruction()
 #endif
 
     switch (memory[pc]) {
+        /*
+         * Miscellaneous
+         */
+    case VM_END:               /* Terminate execution                                          */
+#ifdef __GNUC__
+        exit(0);
+#else
+        /* Spin forever */
+        for (delay = 0; delay < 25000; ++delay);
+	exit(0);
+#endif
+        break;
+
+	/*
+	 * Load Immediate
+	 */
     case VM_LDIMM:             /* Pushes the following 16 bit word to the evaluation stack     */
         ++evalptr;
 	CHECKOVERFLOW();
@@ -484,21 +500,12 @@ void execute_instruction()
 #endif
 
         break;
-        /*
-         * Miscellaneous
-         */
+    case VM_ATOR:              /* Convert absolute address in X to relative address            */
+        XREG = (XREG - fp - 1) & 0xffff;
+	break;
     case VM_RTOA:              /* Convert relative address in X to absolute address            */
         XREG = (XREG + fp + 1) & 0xffff;
 	break;
-    case VM_END:               /* Terminate execution                                          */
-#ifdef __GNUC__
-        exit(0);
-#else
-        /* Spin forever */
-        for (delay = 0; delay < 25000; ++delay);
-	exit(0);
-#endif
-        break;
         /*
          * Integer math
          */

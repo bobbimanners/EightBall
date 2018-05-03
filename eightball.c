@@ -155,6 +155,7 @@ void linksubs(void);
 
 char compile = 0;               /* 0 means interpret, 1 means compile          */
 char compilingsub = 0;          /* 1 when compiling subroutine, 0 otherwise    */
+char onlyconstants = 0;         /* 0 is normal, 1 means only allow const exprs */
 char readbuf[255];              /* Buffer for reading from file                */
 char lnbuf[255];                /* Input text line buffer                      */
 char *txtPtr;                   /* Pointer to next character to read in lnbuf  */
@@ -323,7 +324,8 @@ const char unaryops[] = "-+!~*^";
 #define ERR_TYPE    120         /* Type error         */
 #define ERR_DIVZERO 121         /* Divide by zero     */
 #define ERR_VALUE   122         /* Bad value          */
-#define ERR_LINK    123         /* Linkage error      */
+#define ERR_CONST   123         /* Const value reqd   */
+#define ERR_LINK    124         /* Linkage error      */
 
 /*
  * Error reporting
@@ -400,6 +402,9 @@ void error(unsigned char errcode)
         break;
     case ERR_VALUE:
 	print("bad value");
+	break;
+    case ERR_CONST:
+	print("not const");
 	break;
     case ERR_LINK:
 	print("link");
@@ -967,17 +972,23 @@ unsigned char subscript(int *idx)
 }
 
 /*
- * Parse array dimension.  Must be a literal value.
+ * Parse array dimension.  Must be a constant expression.
  */
 unsigned char dimension(int *idx)
 {
+    unsigned char oldcompile = compile;
+
     if (expect('[')) {
         return 1;
     }
-    if (parseint(idx)) {
-        error(ERR_NUM);
+    onlyconstants = 1; /* Only allow constant terms */
+    compile = 0; /* Actually evaluate */
+    if (eval(0, idx)) {
+        onlyconstants = 0;
         return 1;
     }
+    onlyconstants = 0;
+    compile = oldcompile;
     if (expect(']')) {
         return 1;
     }
@@ -987,6 +998,7 @@ unsigned char dimension(int *idx)
 /*
  * Handles a predicate
  * Returns 0 on success, 1 on error
+ * If the global variable onlyconstants is set then only allow constant predicates.
  */
 unsigned char P()
 {
@@ -1007,6 +1019,11 @@ unsigned char P()
     }
 
     if ((*txtPtr == '&') || (isalphach(*txtPtr))) {
+
+        if (onlyconstants) {
+	    error(ERR_CONST);
+	    return 1;
+        }
 
         addressmode = 0;
 
@@ -1048,6 +1065,11 @@ unsigned char P()
             }
 
         } else if (*txtPtr == '(') {
+
+	    if (onlyconstants) {
+		error(ERR_CONST);
+		return 1;
+	    }
 
             /* No taking address of functions thank you! */
             if (addressmode) {
@@ -2610,7 +2632,6 @@ unsigned char assignorcreate(unsigned char mode)
         switch (mode) {
         case WORD_MODE:
         case BYTE_MODE:
-            /* Array dimensions must be numeric literal */
             if (dimension(&i) == 1) {
                 return RET_ERROR;
             }

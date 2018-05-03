@@ -11,6 +11,7 @@ pr.msg "Word vars:"; pr.nl
 word w1=10
 word w2=100
 word w3=50
+w1=10
 status=(w1==10)&&(w2==100)&&(w3==50)
 call expect(status)
 
@@ -59,7 +60,7 @@ call expect((wpre==0)&&(warr[0]==12)&&(warr[1]==123)&&(warr[2]==12)&&(warr[9]==1
 '------------------
 pr.msg "Byte arrays:"; pr.nl
 byte bpre=0
-byte barr[10]=12
+byte barr[2*5]=12
 byte bpost=0
 
 call expect((&barr[2]-&barr[1])==1)
@@ -184,6 +185,9 @@ call expect(barr[7]==$34)
 
 call c1()
 call expect(iw==555)
+
+call noret()
+call expect(iw==9876)
 
 pr.msg " Recursive:"; pr.nl
 call recurse1(5, &iw)
@@ -353,6 +357,10 @@ endsub
 sub c3()
   iw = 555
   return 0
+endsub
+
+sub noret()
+  iw = 9876
 endsub
 
 sub sqr(word x)
