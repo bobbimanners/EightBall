@@ -700,6 +700,12 @@ Prints a byte array as a string to the console.  The string is null terminated (
 
     pr.str A; ' A is a byte array
 
+#### mode
+This is for setting the text video mode on the Apple II only.  It only works in the interpreter at present.
+
+    mode 40; ' Set 40 column mode
+    mode 80; ' Set 80 column mode
+    
 ### Console Input
 
 #### kbd.ch
