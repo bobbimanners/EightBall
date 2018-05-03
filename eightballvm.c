@@ -753,6 +753,7 @@ int main()
     print("Loading bytecode: ");
     load();
 #ifdef A2E
+    videomode(VIDEOMODE_80COL);
     clrscr();
 #elif defined(CBM)
     printchar(147); /* Clear */

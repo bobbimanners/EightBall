@@ -133,37 +133,19 @@ void printhexbyte(unsigned char val) {
 void getln(char *str, unsigned char buflen)
 {
     unsigned char i;
+    unsigned char j = 0;
 #ifdef A2E
     unsigned char key;
     unsigned char xpos;
     unsigned char ypos;
 #endif
-    unsigned char j = 0;
     do {
         i = read(0, str + j, 1);
 #ifdef A2E
         /*
-         * Handle backspace and delete keys
-         * TODO: I would sooner not use these conio functions.
-         * However this works for now.
-         * TODO: This assumes 80 column mode and does strange things
-         * in 40 cols!
+         * Handle backspace and delete keys.
          */
         key = *(str + j);
-        if (key == KEY_BACKSPACE) {
-            xpos = wherex();
-            ypos = wherey();
-            if ((xpos == 1) && (ypos != 0)) {
-                xpos = 79;
-                --ypos;
-            } else if ((xpos == 0) && (ypos != 0)) {
-                xpos = 78;
-                --ypos;
-            } else if (xpos > 1) {
-                xpos -= 2;
-            }
-            gotoxy(xpos, ypos);
-        }
         if ((key == KEY_LEFTARROW) || (key == KEY_BACKSPACE)) {
             --j;
         } else {

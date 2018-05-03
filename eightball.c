@@ -322,7 +322,8 @@ const char unaryops[] = "-+!~*^";
 #define ERR_ARG     119         /* Argument error     */
 #define ERR_TYPE    120         /* Type error         */
 #define ERR_DIVZERO 121         /* Divide by zero     */
-#define ERR_LINK    122         /* Linkage error      */
+#define ERR_VALUE   122         /* Bad value          */
+#define ERR_LINK    123         /* Linkage error      */
 
 /*
  * Error reporting
@@ -353,10 +354,10 @@ void error(unsigned char errcode)
         print("expr too complex");
         break;
     case ERR_VAR:
-        print("variable name expected");
+        print("var name expected");
         break;
     case ERR_REDEF:
-        print("variable redefined");
+        print("var redef");
         break;
     case ERR_EXPECT:
         print("expected ");
@@ -374,19 +375,19 @@ void error(unsigned char errcode)
         print("ran into sub");
         break;
     case ERR_STR:
-        print("invalid string");
+        print("bad string");
         break;
     case ERR_FILE:
         print("file");
         break;
     case ERR_LINE:
-        print("invalid line num");
+        print("bad line num");
         break;
     case ERR_EXPR:
-        print("invalid expr");
+        print("bad expr");
         break;
     case ERR_NUM:
-        print("invalid number");
+        print("bad number");
         break;
     case ERR_ARG:
         print("argument");
@@ -397,6 +398,12 @@ void error(unsigned char errcode)
     case ERR_DIVZERO:
         print("div by zero");
         break;
+    case ERR_VALUE:
+	print("bad value");
+	break;
+    case ERR_LINK:
+	print("link");
+	break;
     default:
         print("unknown");
     }
@@ -1245,7 +1252,6 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
-
 #elif defined(C64)
 
 /*
@@ -3670,22 +3676,23 @@ unsigned char parsehexint(int *val)
 #define TOK_WHILE    178        /* while         */
 #define TOK_ENDW     179        /* endwhile      */
 #define TOK_END      180        /* end           */
+#define TOK_MODE     181        /* mode          */
 
 /*
  * All the following tokens do not require trailing whitespace
  * Careful - the ordering matters!
  */
-#define TOK_POKEWORD 181        /* poke word (*) */
-#define TOK_POKEBYTE 182        /* poke byte (^) */
+#define TOK_POKEWORD 182        /* poke word (*) */
+#define TOK_POKEBYTE 183        /* poke byte (^) */
 
 /* Line editor commands */
-#define TOK_LOAD    183         /* Editor: load        */
-#define TOK_SAVE    184         /* Editor: save        */
-#define TOK_LIST    185         /* Editor: list        */
-#define TOK_CHANGE  186         /* Editor: modify line */
-#define TOK_APP     187         /* Editor: append line */
-#define TOK_INS     188         /* Editor: insert line */
-#define TOK_DEL     189         /* Editor: delete line */
+#define TOK_LOAD    184         /* Editor: load        */
+#define TOK_SAVE    185         /* Editor: save        */
+#define TOK_LIST    186         /* Editor: list        */
+#define TOK_CHANGE  187         /* Editor: modify line */
+#define TOK_APP     188         /* Editor: append line */
+#define TOK_INS     189         /* Editor: insert line */
+#define TOK_DEL     190         /* Editor: delete line */
 
 /*
  * Used for the stmnttabent type field.  Code in parseline() uses this
@@ -3725,6 +3732,11 @@ struct stmnttabent {
 };
 
 /*
+ * Number of statements - must be updated to match the table
+ */
+#define NUMSTMNTS 41
+
+/*
  * Statement table
  * Must be in order of sequentially increasing token value, so that
  * stmnttabent[t - TOK_COMM] is the line matching token t
@@ -3735,48 +3747,49 @@ struct stmnttabent {
 struct stmnttabent stmnttab[] = {
 
     /* Statements */
-    {"\'", TOK_COMM, FULLLINE},
-    {"pr.dec", TOK_PRDEC, ONEARG},
-    {"pr.dec.s", TOK_PRDEC_S, ONEARG},
-    {"pr.hex", TOK_PRHEX, ONEARG},
-    {"pr.msg", TOK_PRMSG, ONESTRARG},
-    {"pr.nl", TOK_PRNL, NOARGS},
-    {"pr.str", TOK_PRSTR, ONEARG},
-    {"pr.ch", TOK_PRCH, ONEARG},
-    {"kbd.ch", TOK_KBDCH, ONEARG},
-    {"kbd.ln", TOK_KBDLN, TWOARGS},
-    {"quit", TOK_QUIT, NOARGS},
-    {"clear", TOK_CLEAR, NOARGS},
-    {"vars", TOK_VARS, NOARGS},
-    {"word", TOK_WORD, CUSTOM},
-    {"byte", TOK_BYTE, CUSTOM},
-    {"run", TOK_RUN, NOARGS},
-    {"comp", TOK_COMPILE, NOARGS},
-    {"new", TOK_NEW, NOARGS},
-    {"sub", TOK_SUBR, INITIALNAMEARG},
-    {"endsub", TOK_ENDSUBR, NOARGS},
-    {"if", TOK_IF, ONEARG},
-    {"else", TOK_ELSE, NOARGS},
-    {"endif", TOK_ENDIF, NOARGS},
-    {"free", TOK_FREE, NOARGS},
-    {"call", TOK_CALL, INITIALNAMEARG},
-    {"return", TOK_RET, ONEARG},
-    {"for", TOK_FOR, CUSTOM},
-    {"endfor", TOK_ENDFOR, NOARGS},
-    {"while", TOK_WHILE, ONEARG},
-    {"endwhile", TOK_ENDW, NOARGS},
-    {"end", TOK_END, NOARGS},
-    {"*", TOK_POKEWORD, INITIALARG},
-    {"^", TOK_POKEBYTE, INITIALARG},
+    {"\'", TOK_COMM, FULLLINE},            /* 1 */
+    {"pr.dec", TOK_PRDEC, ONEARG},         /* 2 */
+    {"pr.dec.s", TOK_PRDEC_S, ONEARG},     /* 3 */
+    {"pr.hex", TOK_PRHEX, ONEARG},         /* 4 */
+    {"pr.msg", TOK_PRMSG, ONESTRARG},      /* 5 */
+    {"pr.nl", TOK_PRNL, NOARGS},           /* 6 */
+    {"pr.str", TOK_PRSTR, ONEARG},         /* 7 */
+    {"pr.ch", TOK_PRCH, ONEARG},           /* 8 */
+    {"kbd.ch", TOK_KBDCH, ONEARG},         /* 9 */
+    {"kbd.ln", TOK_KBDLN, TWOARGS},        /* 10 */
+    {"quit", TOK_QUIT, NOARGS},            /* 11 */
+    {"clear", TOK_CLEAR, NOARGS},          /* 12 */
+    {"vars", TOK_VARS, NOARGS},            /* 13 */
+    {"word", TOK_WORD, CUSTOM},            /* 14 */
+    {"byte", TOK_BYTE, CUSTOM},            /* 15 */
+    {"run", TOK_RUN, NOARGS},              /* 16 */
+    {"comp", TOK_COMPILE, NOARGS},         /* 17 */
+    {"new", TOK_NEW, NOARGS},              /* 18 */
+    {"sub", TOK_SUBR, INITIALNAMEARG},     /* 19 */
+    {"endsub", TOK_ENDSUBR, NOARGS},       /* 20 */
+    {"if", TOK_IF, ONEARG},                /* 21 */
+    {"else", TOK_ELSE, NOARGS},            /* 22 */
+    {"endif", TOK_ENDIF, NOARGS},          /* 23 */
+    {"free", TOK_FREE, NOARGS},            /* 24 */
+    {"call", TOK_CALL, INITIALNAMEARG},    /* 25 */
+    {"return", TOK_RET, ONEARG},           /* 26 */
+    {"for", TOK_FOR, CUSTOM},              /* 27 */
+    {"endfor", TOK_ENDFOR, NOARGS},        /* 28 */
+    {"while", TOK_WHILE, ONEARG},          /* 29 */
+    {"endwhile", TOK_ENDW, NOARGS},        /* 30 */
+    {"end", TOK_END, NOARGS},              /* 31 */
+    {"mode", TOK_MODE, ONEARG},            /* 32 */
+    {"*", TOK_POKEWORD, INITIALARG},       /* 33 */
+    {"^", TOK_POKEBYTE, INITIALARG},       /* 34 */
 
     /* Editor commands */
-    {":r", TOK_LOAD, ONESTRARG},
-    {":w", TOK_SAVE, ONESTRARG},
-    {":l", TOK_LIST, CUSTOM},
-    {":c", TOK_CHANGE, INITIALARG},
-    {":a", TOK_APP, ONEARG},
-    {":i", TOK_INS, ONEARG},
-    {":d", TOK_DEL, INITIALARG}
+    {":r", TOK_LOAD, ONESTRARG},           /* 35 */
+    {":w", TOK_SAVE, ONESTRARG},           /* 36 */
+    {":l", TOK_LIST, CUSTOM},              /* 37 */
+    {":c", TOK_CHANGE, INITIALARG},        /* 38 */
+    {":a", TOK_APP, ONEARG},               /* 39 */
+    {":i", TOK_INS, ONEARG},               /* 40 */
+    {":d", TOK_DEL, INITIALARG}            /* 41 */
 };
 
 /*
@@ -3794,17 +3807,15 @@ unsigned char matchstatement()
     char c;
     struct stmnttabent *s;
 
-    /* Be careful to update this number (40) when adding new tokens */
-    for (i = 0; i < 40; ++i) {
+    for (i = 0; i < NUMSTMNTS; ++i) {
         s = &(stmnttab[i]);
         len = strlen(s->name);
         if (!strncmp(txtPtr, s->name, len)) {
             /*
-             * Check for whitespace on 151 <= tokens <= 178 only
-             * Careful - be sure to update this when adding
-             * new tokens!
+             * Do not check for whitespace for tokens >= TOK_POKEWORD
+	     * Also do not check for whitespace for tokens <= TOK_COMM.
              */
-            if ((s->token > 178) || (s->token < 151)) {
+            if ((s->token >= TOK_POKEWORD) || (s->token <= TOK_COMM)) {
                 return s->token;
             }
             c = *(txtPtr + len);
@@ -4254,6 +4265,18 @@ unsigned char parseline()
                 return 1;       /* Normal stop */
             }
             break;
+	case TOK_MODE:
+#ifdef A2E
+	    if (arg == 40) {
+                videomode(VIDEOMODE_40COL);
+	    } else if (arg == 80) {
+		videomode(VIDEOMODE_80COL);
+	    } else {
+                error(ERR_VALUE);
+		return 2;
+	    }
+#endif
+	    break;
         case TOK_FREE:
 #ifdef CC65
             printdec(getfreespace1());
