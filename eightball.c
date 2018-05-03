@@ -1169,6 +1169,21 @@ unsigned char P()
         push_operand_stack(arg);
         eatspace();
 
+    } else if (*txtPtr == '\'') {
+	/*
+	 * Handle character constants
+	 */
+	++txtPtr;               /* Eat the ' */
+	arg = *txtPtr;
+	++txtPtr;
+	if (*txtPtr != '\'') {
+            error(ERR_NUM);
+            return 1;
+	}
+	++txtPtr;               /* Eat the ' */
+        push_operand_stack(arg);
+        eatspace();
+
     } else if (*txtPtr == '(') {
         /*
          * Handle subexpressions in parenthesis

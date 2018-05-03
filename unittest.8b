@@ -29,14 +29,14 @@ call expect(status)
 pr.msg "Byte vars:"; pr.nl
 byte b1=10;
 byte b2=100;
-word b3=50;
-call expect((b1==10)&&(b2==100)&&(b3==50))
+word b3='a';
+call expect((b1==10)&&(b2==100)&&(b3=='a'))
 
 b2=b2+10
-call expect((b1==10)&&(b2==110)&&(b3==50))
+call expect((b1==10)&&(b2==110)&&(b3=='a'))
 
 b2=b1+10
-call expect((b1==10)&&(b2==20)&&(b3==50))
+call expect((b1==10)&&(b2==20)&&(b3=='a'))
 
 '------------------
 ' Word arrays
