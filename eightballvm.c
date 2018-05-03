@@ -209,6 +209,7 @@ void execute_instruction()
     unsigned int delay;
 #endif
 
+//    print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
 #ifdef DEBUGREGS
     unsigned int i;
     print("\n");
@@ -756,9 +757,10 @@ void load()
 int main()
 {
     print("EightBallVM v" VERSIONSTR "\n");
-    print("Bobbi, 2018\n\n");
+    print("(c)Bobbi, 2018\n\n");
     print("Loading bytecode: ");
     load();
+    print("Done\n");
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     clrscr();

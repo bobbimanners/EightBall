@@ -2033,6 +2033,8 @@ unsigned char createintvar(char *name,
                 emit(VM_NEQL);
                 emitldi(rtPC - 11);
                 emit(VM_BRNCH);
+		emit(VM_DROP);
+		emit(VM_DROP);
             } else {
                 if (type == TYPE_WORD) {
                     v = alloc1(sizeof(var_t) + (sz + 2) * sizeof(int));
@@ -2203,37 +2205,56 @@ unsigned char setintvar(char *name, int idx, int value)
 	    error(ERR_SUBSCR);
 	    return 1;
 	}
-        bodyptr =
-            (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
+        bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
             /* *** Index is on the stack (Y), and initializer is on the stack (X) *** */
             emit(VM_SWAP);
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                //emitldi(2);
-                //emit(VM_MUL);
 		emitldi(1);
 		emit(VM_LSH);
                 emitldi((int) ((int *) bodyptr));
+		/*
+		 * If the array size field is -1, this means the bodyptr is a
+		 * pointer to a pointer to the body (rather than pointer to
+		 * the body), so it needs to be dereferenced one more time.
+		 */
+                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		    emit(VM_LDRWORD);
+		}
                 emit(VM_ADD);
                 if (local && compilingsub) {
-                    emit(VM_STRWORD);
+                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+                        emit(VM_STAWORD);
+		    } else {
+                        emit(VM_STRWORD);
+		    }
                 } else {
                     emit(VM_STAWORD);
                 }
             } else {
                 emitldi((int) ((int *) bodyptr));
+		/*
+		 * If the array size field is -1, this means the bodyptr is a
+		 * pointer to a pointer to the body (rather than pointer to
+		 * the body), so it needs to be dereferenced one more time.
+		 */
+                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		    emit(VM_LDRWORD);
+		}
                 emit(VM_ADD);
                 if (local && compilingsub) {
-                    emit(VM_STRBYTE);
+                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+                        emit(VM_STABYTE);
+		    } else {
+                        emit(VM_STRBYTE);
+		    }
                 } else {
                     emit(VM_STABYTE);
                 }
             }
         } else {
-            if ((idx < 0) || (idx >=
-                *(int *) ((unsigned char *) ptr + sizeof(var_t) +
-                          sizeof(int)))) {
+            if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
                 error(ERR_SUBSCR);
                 return 1;
             }
@@ -2353,55 +2374,73 @@ unsigned char getintvar(char *name,
     } else {
 	/*
 	 * Arrays
-	 * Note the special case:
-	 * For an array A, &A is the same as &A[0]
+	 * Note the special cases, for an array A:
+	 * 1) &A is the same as &A[0]
+	 * 2) A is the same as &A[0]
+	 * This second case is needed to make the eval() work propertly
+	 * for array pass-by-reference.
 	 */
         if (idx == -1) {
-	    if (address) {
-                idx = 0;
-		if (compile) {
-		    emitldi(0);
-		}
-	    } else {
-	        /* Means [..] subscript was never provided */
-	        error(ERR_SUBSCR);
-	        return 1;
+	    /* Means [..] subscript was never provided */
+	    address = 1;
+	    idx = 0;
+	    if (compile) {
+	        emitldi(0);
 	    }
 	}
-        bodyptr =
-            (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
+        bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
             /* *** Index is on the stack (X) *** */
             if ((ptr->type & 0x0f) == TYPE_WORD) {
-                //emitldi(2);
-                //emit(VM_MUL);
 		emitldi(1);
 		emit(VM_LSH);
                 emitldi((int) ((int *) bodyptr));
+		/*
+		 * If the array size field is -1, this means the bodyptr is a
+		 * pointer to a pointer to the body (rather than pointer to
+		 * the body), so it needs to be dereferenced one more time.
+		 */
+                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		    emit(VM_LDRWORD);
+		}
                 emit(VM_ADD);
 		if (!address) {
                     if (local && compilingsub) {
-                        emit(VM_LDRWORD);
+                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		            emit(VM_LDAWORD);
+			} else {
+                       	    emit(VM_LDRWORD);
+			}
                     } else {
                         emit(VM_LDAWORD);
                     }
 		}
             } else {
                 emitldi((int) ((int *) bodyptr));
+		/*
+		 * If the array size field is -1, this means the bodyptr is a
+		 * pointer to a pointer to the body (rather than pointer to
+		 * the body), so it needs to be dereferenced one more time.
+		 */
+                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		    emit(VM_LDRWORD);
+		}
                 emit(VM_ADD);
 		if (!address) {
                     if (local && compilingsub) {
-                        emit(VM_LDRBYTE);
+                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+		            emit(VM_LDABYTE);
+			} else {
+                       	    emit(VM_LDRBYTE);
+			}
                     } else {
                         emit(VM_LDABYTE);
                     }
 		}
             }
         } else {
-            if ((idx < 0) || (idx >=
-                *(int *) ((unsigned char *) ptr + sizeof(var_t) +
-                          sizeof(int)))) {
+            if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
                 error(ERR_SUBSCR);
                 return 1;
             }
@@ -2604,7 +2643,7 @@ unsigned char doendif()
  *  - LET_MODE - assignment to existing variable
  *  - FOR_MODE - entry to for loop
  *
- * Handles parsing the following text (formore == 0):
+ * Handles parsing the following text (mode != FOR_MODE):
  *     "var = expr"
  *     "var[expr1] = expr2"
  * or (mode == FOR_MODE):
@@ -3170,8 +3209,6 @@ unsigned char dosubr()
                 }
             }
 
-            /* TODO: Handle pass by reference for arrays */
-
             /*
              * Set up the variables for the formal parameters,
              * pointing back to the storage already allocated on
@@ -3182,7 +3219,7 @@ unsigned char dosubr()
             v = varslocal;
             while (v) {
                 if (v->name[0] != '-') {
-                   if (type == TYPE_WORD) {
+                   if (arraymode || (type == TYPE_WORD)) {
                        *(int *) ((unsigned char *) v + sizeof(var_t)) += 2;
                    } else {
                        *(int *) ((unsigned char *) v + sizeof(var_t)) += 1;
@@ -3191,11 +3228,32 @@ unsigned char dosubr()
                 v = v->next;
             }
 
-            v = alloc1(sizeof(var_t) + sizeof(int));
+	    if (arraymode) {
+                v = alloc1(sizeof(var_t) + 2 * sizeof(int));
+	    } else {
+                v = alloc1(sizeof(var_t) + sizeof(int));
+	    }
+
             *(int *) ((unsigned char *) v + sizeof(var_t)) = 4; // Skip over return address and frame pointer
             strncpy(v->name, name, VARNUMCHARS);
             v->type = ((arraymode & 0x0f) << 4) | type;
             v->next = NULL;
+
+	    if (arraymode) {
+                /*
+		 * Array pass-by-reference.
+		 *
+		 * In this case the pointer to the array body was pushed to the
+		 * call stack by the caller, and the var_t record records the
+		 * pointer to this pointer!
+		 *
+		 * Array size is not used in compiled code, so set it to -1 to
+		 * indicate array-pass-by-reference.  Code in setintvar() and
+		 * getintvar() uses this to work out that it has to do an extra
+		 * dereference.
+		 */
+                *(int *) ((unsigned char *) v + sizeof(var_t) + sizeof(int)) = -1;
+	    }
 
             if (varsend) {
                 varsend->next = v;
@@ -3430,14 +3488,12 @@ unsigned char docall()
                         /*
                          * Pass scalar value
                          */
-
                         if (!compile) {
                             /* Back to old frame for lookup */
                             varslocal = oldvarslocal;
                         }
                         if (eval(0, &arg)) {
                             /* No expression found */
-                            varslocal = newvarslocal;
                             error(ERR_ARG);
                             return RET_ERROR;
                         }
@@ -3458,36 +3514,32 @@ unsigned char docall()
                         /*
                          * Array pass-by-reference
                          */
-                        for (j = 0; j < VARNUMCHARS; ++j) {
-                            name2[j] = 0;
-                        }
-                        j = 0;
-                        while (txtPtr && (isalphach(*txtPtr)
-                                          || isdigitch(*txtPtr))) {
-                            if (j < VARNUMCHARS) {
-                                name2[j] = *txtPtr;
+			if (!compile) {
+                            for (j = 0; j < VARNUMCHARS; ++j) {
+                                name2[j] = 0;
                             }
-                            ++txtPtr;
-                            ++j;
-                        }
-                        if (!compile) {
+                            j = 0;
+                            while (txtPtr && (isalphach(*txtPtr)
+                                          || isdigitch(*txtPtr))) {
+                                if (j < VARNUMCHARS) {
+                                    name2[j] = *txtPtr;
+                                }
+                                ++txtPtr;
+                                ++j;
+                            }
                             /* Back to old frame for lookup */
                             varslocal = oldvarslocal;
-                        }
-                        array = findintvar(name2, &local);
-                        if (!array) {
-                            error(ERR_VAR);
-                            return RET_ERROR;
-                        }
-                        /* j holds number of dimensions */
-                        j = (array->type & 0xf0) >> 4;
-                        if (((array->type & 0x0f) != type) || (j == 0)) {
-                            error(ERR_TYPE);
-                            return RET_ERROR;
-                        }
-                        if (compile) {
-                            /* TODO: Handle pass by reference for arrays for compiled code */
-                        } else {
+                            array = findintvar(name2, &local);
+                            if (!array) {
+                                error(ERR_VAR);
+                                return RET_ERROR;
+                            }
+                            /* j holds number of dimensions */
+                            j = (array->type & 0xf0) >> 4;
+                            if (((array->type & 0x0f) != type) || (j == 0)) {
+                                error(ERR_TYPE);
+                                return RET_ERROR;
+                            }
                             /* Back to new frame to create var */
                             varslocal = newvarslocal;
                             createintvar(name,
@@ -3495,7 +3547,16 @@ unsigned char docall()
                                          j,
                                          *(getptrtoscalarword(array) + 1),
                                          0, *getptrtoscalarword(array));
-                        }
+
+			} else {
+                            if (eval(0, &arg)) {
+                                /* No expression found */
+                                error(ERR_ARG);
+                                return RET_ERROR;
+                            }
+                            emit(VM_PSHWORD);
+			    argbytes += 2;
+			}
                     }
                     eatspace();
                     if (*txtPtr == ',') {

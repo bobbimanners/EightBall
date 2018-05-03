@@ -189,10 +189,6 @@ call expect(iw==555)
 call noret()
 call expect(iw==9876)
 
-pr.msg " Recursive:"; pr.nl
-call recurse1(5, &iw)
-call expect(iw==120)
-
 '------------------
 ' Subroutine params
 '------------------
@@ -236,6 +232,24 @@ call expect(iw==2345)
 word a2=&ib
 call ppb1(110, a2)
 call expect(ib==110)
+
+pr.msg " Recursive:"; pr.nl
+call recurse1(5, &iw)
+call expect(iw==120)
+
+pr.msg " Array pass by ref:"; pr.nl
+word AA[10]=0
+call setwarray(AA, 10)
+call sumwarray(AA, 10)
+call expect(iw==45)
+
+byte BB[10]=0
+call setbarray(BB, 10)
+call sumbarray(BB, 10)
+call expect(iw==45)
+
+call pbrfirstlevel(AA)
+call expect(AA[3]==123)
 
 '------------------
 ' Invoke func
@@ -374,6 +388,47 @@ sub recurse1(word x, word addr)
     call recurse1(x-1,addr)
     *addr=*addr*x
   endif
+endsub
+
+sub setwarray(word A[], word len)
+  word i=0
+  for i=0:len-1
+    A[i] = i
+  endfor
+endsub
+
+sub sumwarray(word A[], word len)
+  word i=0
+  iw=0
+  for i=0:len-1
+    iw=iw+A[i]
+  endfor
+endsub
+
+sub setbarray(byte A[], word len)
+  word i=0
+  for i=0:len-1
+    A[i] = i
+  endfor
+endsub
+
+sub sumbarray(byte A[], word len)
+  word i=0
+  iw=0
+  for i=0:len-1
+    iw=iw+A[i]
+  endfor
+endsub
+
+sub pbrfirstlevel(word XX[])
+  call pbrsecondlevel(XX)
+endsub
+
+sub pbrsecondlevel(word XX[])
+  byte i=0
+  for i=0:9
+    XX[i]=123
+  endfor
 endsub
 
 sub recurse2(word x)
