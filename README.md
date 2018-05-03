@@ -282,13 +282,19 @@ Arrays of byte and word may be declared as follows.  The mandatory initializer i
 
 **_At present, only 1D arrays are supported, but this will be expanded in future releases._**
 
-**Array dimensions must be literal constants. Expressions are not parsed in this case.**
-
 Array elements begin from 0, so the array `storage` above has elements from 0 to 9.
 
     storage[0] = 0;  ' First element
     storage[9] = 99; ' Last element
+
+Array dimensions must be known at compile time, but expressions made up of constants are allowed for array dimensions.  This is allowed:
+
+    word knownsize[10*10+5] = 0;
     
+But this is illegal:
+
+    word knownsize[10*myvar] = 0;
+
 ## Expressions
 
 ### Constants
