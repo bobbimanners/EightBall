@@ -308,6 +308,11 @@ or hex:
 
     byte a = $0a
     word w = $face
+    
+or character:
+
+    byte c = 'a'
+    word w = 'Z'
 
 ### Operators
 EightBall supports most of C's arithmetic, logical and bitwise operators.  They have the same precedence as in C as well.  Since the Commodore machines do not have all the ASCII character, some substitutions have been made (shown in parenthesis below.)
@@ -716,6 +721,12 @@ This is for setting the text video mode on the Apple II only.  It only works in 
 
 #### kbd.ch
 Allows a single character to be read from the keyboard.  Be careful - this function assumes the argument passed to it a pointer to a byte value into which the character may be stored.
+
+Character literals may be used with `kbd.ch`:
+
+    pr.ch 'A'
+
+Or we can print a character obtained from the keyboard:
 
     byte c = 0
     while 1
