@@ -570,8 +570,6 @@ Here is an example of using a pointer to byte:
     
 ### Passing an Array by Reference
 
-**Warning: This is currently not implemented in the compiler, only the interpreter.**
-
 It is frequently useful to pass an array into a subroutine.  It is not very useful to use pass by value for arrays, since this may mean copying a large object onto the stack.  For these reasons, EightBall implements a special pass by reference mode for array variables, which operates in a manner similar to C.
 
 Here is an example of a function which takes a regular variable and an array:
