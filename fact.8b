@@ -10,8 +10,8 @@ sub fact(word val)
   if val == 0
     return 1
   else
-'    return val * fact(val-1)   ; ' THIS DOES NOT WORK
-    return fact(val-1) * val    ; ' BUT THIS DOES!!!
+    return val * fact(val-1)   ; ' THIS DOES NOT WORK
+'    return fact(val-1) * val    ; ' BUT THIS DOES!!!
   endif
 endsub
 

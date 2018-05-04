@@ -952,7 +952,7 @@ unsigned char E()
  */
 unsigned char subscript(int *idx)
 {
-/* Start a new subexpression */
+    /* Start a new subexpression */
     push_operator_stack(SENTINEL);
 
     if (expect('[')) {
@@ -1078,9 +1078,11 @@ unsigned char P()
             }
 
 	    if (compile) {
+                push_operator_stack(SENTINEL);
 	        if (docall()) {
 		    return 1;
 	        }
+                pop_operator_stack();
                 goto skip_var;      // MESSY!!
 	    } else {
 
@@ -2931,6 +2933,7 @@ unsigned char doendfor()
         emit(VM_GTE);
         emitldi(return_stack[returnSP + 3]);
         emit(VM_BRNCH);
+        emit(VM_DROP);
         goto unwind;
     }
 

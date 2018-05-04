@@ -209,7 +209,7 @@ void execute_instruction()
     unsigned int delay;
 #endif
 
-//    print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
+    //print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
 #ifdef DEBUGREGS
     unsigned int i;
     print("\n");
@@ -279,10 +279,14 @@ void execute_instruction()
          * Miscellaneous
          */
     case VM_END:               /* Terminate execution                                          */
+	if (evalptr > 0) {
+	    print("WARNING: evalptr ");
+	    printdec(evalptr);
+	    printchar('\n');
+	}
 #ifdef __GNUC__
         exit(0);
 #else
-        /* Spin forever */
         for (delay = 0; delay < 25000; ++delay);
 	exit(0);
 #endif

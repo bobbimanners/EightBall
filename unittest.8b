@@ -251,6 +251,8 @@ call expect(iw==45)
 call pbrfirstlevel(AA)
 call expect(AA[3]==123)
 
+call wrapper()
+
 '------------------
 ' Invoke func
 '------------------
@@ -258,13 +260,11 @@ pr.msg "Invoke func:"; pr.nl
 call expect(sqr(10)==100)
 
 pr.msg " Recursive:"; pr.nl
-iw=recurse2(4)
-call expect(iw==24)
+iw=recurse2(5)
+call expect(iw==5*4*3*2)
 
-' TODO: This is failing in the compiler where it returns 1
-' But it is okay in interpreter where it returns 24 as it should.
-iw=recurse3(4)
-call expect(iw==24)
+iw=recurse3(5)
+call expect(iw==5*4*3*2)
 
 '------------------
 ' Locals
@@ -431,6 +431,12 @@ sub pbrsecondlevel(word XX[])
   endfor
 endsub
 
+sub wrapper()
+  word xyz[10]=0
+  call pbrfirstlevel(xyz)
+  call expect(xyz[3]==123)
+endsub
+
 sub recurse2(word x)
   if x==0
     return 1;
@@ -445,7 +451,7 @@ sub recurse3(word x)
   if x==0
     return 1;
   else
-    return x*recurse2(x-1)
+    return x*recurse3(x-1)
   endif
 endsub
 

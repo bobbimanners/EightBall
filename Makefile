@@ -112,3 +112,11 @@ test.dsk: eightball.system ebvm.system sieve4.8b
 	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
 	java -jar $(APPLECMDR) -p test.dsk sieve4.8b txt <sieve4.8b
 
+xvic: test.d64
+	xvic -mem all -drive8type 1541 -8 test.d64
+
+x64: test.d64
+	x64 -8 test.d64
+
+mame: test.dsk
+	mame -w apple2ee -sl6 diskii -floppydisk1 test.dsk
