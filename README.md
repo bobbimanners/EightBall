@@ -350,11 +350,23 @@ EightBall also implements 'star operators' for pointer dereferencing which will 
 #### Address-of Operator
 The `&` prefix operator returns a pointer to a variable which may be used to read and write the variable's contents.  The operator may be applied to scalar variables, whole arrays and individual elements of arrays.
 
-    word w = 123;
-    word A[10] = 0;
+    word w = 123
+    word A[10] = 0
     pr.dec &w;       ' Address of scalar w
     pr.dec &A;       ' Address of start of array A
     pr.dec &A[2]     ' Address of third element of array A
+    
+Note also that for arrays, evaluating just the array name with no index give the address of the start of the array.  (This trick enables the array pass-by-reference feature to work.)
+
+The following code will print "ALL THE SAME" on the console:
+
+    word A[10] = 0
+    word a1 = A
+    word a2 = &A
+    word a3 = &A[0]
+    if ((a1 == a2) && (a1 == a3))
+      pr.msg "ALL THE SAME"; pr.nl
+    endif
 
 #### 'Star Operators'
 EightBall provides two 'star operators' which dereference pointers in a manner similar to the C star operator.  One of these (`*`) operates on word values, the other (`^`) operates on byte values.  Each of the operators may be used both for reading and writing through pointers.
