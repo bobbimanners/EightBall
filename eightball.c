@@ -2415,6 +2415,13 @@ unsigned char getintvar(char *name,
                     } else {
                         emit(VM_LDAWORD);
                     }
+		} else {
+                    if (local && compilingsub) {
+                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
+			    /* Convert to absolute address */
+			    emit(VM_RTOA);
+			}
+		    }
 		}
             } else {
                 emitldi((int) ((int *) bodyptr));
@@ -2437,6 +2444,13 @@ unsigned char getintvar(char *name,
                     } else {
                         emit(VM_LDABYTE);
                     }
+		} else {
+                    if (local && compilingsub) {
+                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
+			    /* Convert to absolute address */
+			    emit(VM_RTOA);
+			}
+		    }
 		}
             }
         } else {
