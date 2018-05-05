@@ -976,30 +976,6 @@ unsigned char subscript(int *idx)
 }
 
 /*
- * Parse array dimension.  Must be a constant expression.
- */
-unsigned char dimension(int *idx)
-{
-    unsigned char oldcompile = compile;
-
-    if (expect('[')) {
-        return 1;
-    }
-    onlyconstants = 1; /* Only allow constant terms */
-    compile = 0; /* Actually evaluate */
-    if (eval(0, idx)) {
-        onlyconstants = 0;
-        return 1;
-    }
-    onlyconstants = 0;
-    compile = oldcompile;
-    if (expect(']')) {
-        return 1;
-    }
-    return 0;
-}
-
-/*
  * Handles a predicate
  * Returns 0 on success, 1 on error
  * If the global variable onlyconstants is set then only allow constant predicates.
@@ -1290,8 +1266,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-//#define HEAP2LIM (char*)0x8600
-#define HEAP2LIM (char*)0x8c00 // SET EXPERIMENTALLY
+#define HEAP2LIM (char*)0x8c00 
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
@@ -1312,8 +1287,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
-//#define HEAP2LIM (char*)0x6a00
-#define HEAP2LIM (char*)0x7300 // SET EXPERIMENTALLY
+#define HEAP2LIM (char*)0x7300
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
@@ -2049,7 +2023,6 @@ unsigned char createintvar(char *name,
 
             if (compile) {
 
-                /* *** Initializer value is on stack (X) *** */
                 v = alloc1(sizeof(var_t) + 2 * sizeof(int));
                 if (type == TYPE_WORD) {
                     if (compilingsub) {
@@ -2067,6 +2040,7 @@ unsigned char createintvar(char *name,
 
                 /*
                  * The following generates code to allocate the array
+		 * TODO: This is not very efficient. Need a VM instruction to allocate a block.
                  */
 		emitldi(0); /* Value to fill with */
                 emitldi(sz);
@@ -2098,6 +2072,9 @@ unsigned char createintvar(char *name,
 		    if (arrinitmode == 0) {
 			emitldi((*txtPtr == '"') ? 0 : *txtPtr);
                         ((type == TYPE_WORD) ? st_abs_word(i) : st_abs_byte(i));
+			if (*txtPtr == '"') {
+			    break;
+			}
 		        ++txtPtr;
 		    } else {
 #ifdef CBM
@@ -2837,6 +2814,7 @@ unsigned char assignorcreate(unsigned char mode)
     int i = 0;
     unsigned char numdims = 0;
     unsigned char local = 0;
+    unsigned char oldcompile = compile;
 
 #ifdef __GNUC__
 //print("assignorcreate()\n");
@@ -2862,9 +2840,15 @@ unsigned char assignorcreate(unsigned char mode)
         switch (mode) {
         case WORD_MODE:
         case BYTE_MODE:
-            if (dimension(&i) == 1) {
+	    onlyconstants = 1; /* Only parse constants - no variables  */
+	    compile = 0;       /* Use subscript() to eval, not codegen */
+            if (subscript(&i) == 1) {
+		onlyconstants = 0;
+		compile = oldcompile;
                 return RET_ERROR;
             }
+	    onlyconstants = 0; /* Back to normal service */
+	    compile = oldcompile;
             break;
         default:
             if (subscript(&i) == 1) {
