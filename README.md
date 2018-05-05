@@ -288,7 +288,9 @@ Initializer lists must be no longer than the number of elements in the array.  T
 
     word bad[3] = {1, 2, 3, 4}; ' INITIALIZER LIST TOO LONG!
     
-If the initializer list is shorter than the number of elements in the array then the remaining elements are set to zero.
+If the initializer list is shorter than the number of elements in the array then the remaining elements are set to zero.  The empty list initializes all elements to zero:
+
+    word allzero[10] = {}
 
 It is also possible to use string literals as array initializers.  This is usually used with arrays of `byte` to initialize strings, for example:
 
@@ -299,10 +301,14 @@ The array `msg` will be initialized to the character values of the string litera
     byte aa[4] = "ABC"; # Okay
     byte aa[4] = "ABCD"; # TOO LONG!
     
-Finally, note that string literals may also be used to initialize `word` arrays:
+Note that string literals may also be used to initialize `word` arrays:
 
    word vals[10] = "ABCABCABC"
-   
+ 
+Since the Commodore VIC20 and C64 lack the `{` and `}` symbols, `[` and `]` are used in their place, for example
+
+   word commodore[10] = [10, 9, 8 ]
+
 #### Array Indexing
 
 Array elements begin from 0, so the array `storage` above has elements from 0 to 9.
