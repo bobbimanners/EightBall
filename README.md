@@ -303,11 +303,11 @@ The array `msg` will be initialized to the character values of the string litera
     
 Note that string literals may also be used to initialize `word` arrays:
 
-   word vals[10] = "ABCABCABC"
+    word vals[10] = "ABCABCABC"
  
 Since the Commodore VIC20 and C64 lack the `{` and `}` symbols, `[` and `]` are used in their place, for example
 
-   word commodore[10] = [10, 9, 8 ]
+    word commodore[10] = [10, 9, 8 ]
 
 #### Array Indexing
 
