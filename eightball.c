@@ -325,7 +325,8 @@ const char unaryops[] = "-+!~*^";
 #define ERR_DIVZERO 121         /* Divide by zero     */
 #define ERR_VALUE   122         /* Bad value          */
 #define ERR_CONST   123         /* Const value reqd   */
-#define ERR_LINK    124         /* Linkage error      */
+#define ERR_TOOLONG 124         /* Initializer too lng*/
+#define ERR_LINK    125         /* Linkage error      */
 
 /*
  * Error reporting
@@ -406,6 +407,9 @@ void error(unsigned char errcode)
     case ERR_CONST:
 	print("not const");
 	break;
+    case ERR_TOOLONG:
+        print("too long");
+        break;
     case ERR_LINK:
 	print("link");
 	break;
@@ -1287,7 +1291,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 
 #define HEAP2TOP (char*)0x97ff
 //#define HEAP2LIM (char*)0x8600
-#define HEAP2LIM (char*)0x8b00 // SET EXPERIMENTALLY
+#define HEAP2LIM (char*)0x8c00 // SET EXPERIMENTALLY
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
@@ -1309,7 +1313,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
 //#define HEAP2LIM (char*)0x6a00
-#define HEAP2LIM (char*)0x7000 // SET EXPERIMENTALLY
+#define HEAP2LIM (char*)0x7300 // SET EXPERIMENTALLY
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
@@ -1329,13 +1333,22 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
  *   Heap 1: Variables
  *   Heap 2: Program text
  */
-#define HEAP1TOP (char*)0xbfff
-#define HEAP1LIM (char*)0xa000
+//#define HEAP1TOP (char*)0xbfff
+//#define HEAP1LIM (char*)0xa000
 
-#define HEAP2TOP (char*)0x7fff - 0x0400 /* Leave $400 for the C stack */
-#define HEAP2LIM (char*)0x7700  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
-                                 * TRASH THE CODE, WHICH LOADS FROM $1200 UP
-                                 * USE THE MAPFILE! */
+//#define HEAP2TOP (char*)0x7fff - 0x0400 /* Leave $400 for the C stack */
+//#define HEAP2LIM (char*)0x7c00  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+//                                 * TRASH THE CODE, WHICH LOADS FROM $1200 UP
+//                                 * USE THE MAPFILE! */
+
+// Everything in BLK5 for now
+// BLK3 is totally full of code!
+// Man ... we really need more memory!!
+#define HEAP1TOP (char*)0xbfff
+#define HEAP1LIM (char*)0xb000
+#define HEAP2TOP (char*)0xafff
+#define HEAP2LIM (char*)0xa000
+
 
 #endif
 
@@ -1903,6 +1916,22 @@ void printvars()
     }
 }
 
+/* Factored out to save a few bytes
+ * Used by createintvar() only.
+ */
+void st_abs_word(int i) {
+    emitldi(rtSP + 1 + 2 * i);
+    emit(VM_STAWORD);
+}
+
+/* Factored out to save a few bytes
+ * Used by createintvar() only.
+ */
+void st_abs_byte(int i) {
+    emitldi(rtSP + 1 + i);
+    emit(VM_STABYTE);
+}
+
 /*
  * Create new integer variable (either word or byte, scalar or array)
  *
@@ -1928,7 +1957,9 @@ unsigned char createintvar(char *name,
                            int sz, int value, int bodyptr)
 {
     int i;
+    int val;
     var_t *v;
+    unsigned char arrinitmode = 0; /* 0 means string initializer, 1 means list initializer */
     unsigned char local = 1;
 
     v = findintvar(name, &local);       /* Only search local scope */
@@ -1982,15 +2013,14 @@ unsigned char createintvar(char *name,
         }
     } else {
         /*
-         * Array variables
-         *
+         * Array variables.
+	 *
          * Here we allocate two words of space as follows:
          *  WORD1: Pointer to payload
          *  WORD2: to record the single dimensions of the 1D array.
          * The payload follows these two words.  This scheme is
          * designed to be extensible to more dimensions.
          */
-
         if (bodyptr) {
 
             /*
@@ -2000,6 +2030,23 @@ unsigned char createintvar(char *name,
             v = alloc1(sizeof(var_t) + 2 * sizeof(int));
 
         } else {
+            /*
+	     * For arrays we parse the initializer here.
+	     */
+            if (numdims != 0) {
+                if (*txtPtr == '"') {
+		    arrinitmode = 0;
+		    ++txtPtr;
+#ifdef CBM
+                } else if (*txtPtr == '[') {
+#else
+                } else if (*txtPtr == '{') {
+#endif
+		    arrinitmode = 1;
+		    ++txtPtr;
+	        }
+            }
+
             if (compile) {
 
                 /* *** Initializer value is on stack (X) *** */
@@ -2019,8 +2066,9 @@ unsigned char createintvar(char *name,
                 }
 
                 /*
-                 * The following generates code to initialize the array
+                 * The following generates code to allocate the array
                  */
+		emitldi(0); /* Value to fill with */
                 emitldi(sz);
                 emit(VM_DEC);
                 emit(VM_DUP);
@@ -2037,24 +2085,136 @@ unsigned char createintvar(char *name,
                 emit(VM_BRNCH);
 		emit(VM_DROP);
 		emit(VM_DROP);
+
+                /*
+		 * Initialize array
+		 * arrinitmode 0 is for string initializer "like this"
+		 * arrinitmode 1 is for list initializer {123, 456, 789 ...}
+		 */
+		if (arrinitmode == 0) {
+		  --sz; /* Hack to leave space for final null */
+		}
+                for (i = 0; i < sz; ++i) {
+		    if (arrinitmode == 0) {
+			emitldi((*txtPtr == '"') ? 0 : *txtPtr);
+                        ((type == TYPE_WORD) ? st_abs_word(i) : st_abs_byte(i));
+		        ++txtPtr;
+		    } else {
+#ifdef CBM
+		        if (*txtPtr == ']') {
+#else
+		        if (*txtPtr == '}') {
+#endif
+			    break;
+			}
+                        if (eval(0, &val)) {
+                            return 1;
+                        }
+                        ((type == TYPE_WORD) ? st_abs_word(i) : st_abs_byte(i));
+			eatspace();
+			if (*txtPtr == ',') {
+			    ++txtPtr;
+			}
+			eatspace();
+		    }
+		}
+		if (arrinitmode == 0) {
+		    ++sz; /* Reverse the hack we perpetuated above */
+		    if (*txtPtr == '"') {
+		        ++txtPtr;
+	            } else {
+		        error(ERR_TOOLONG);
+		        return 1;
+	            }
+	        } else {
+#ifdef CBM
+		    if (*txtPtr == ']') {
+#else
+		    if (*txtPtr == '}') {
+#endif
+		       ++txtPtr;
+		    } else {
+		       error(ERR_TOOLONG);
+		       return 1;
+		    }
+		}
             } else {
                 if (type == TYPE_WORD) {
                     v = alloc1(sizeof(var_t) + (sz + 2) * sizeof(int));
                     bodyptr = (int) ((unsigned char *) v + sizeof(var_t) + 2 * sizeof(int));
-
-                    /* Initialize array */
-                    for (i = 0; i < sz; ++i) {
-                        *((int *) bodyptr + i) = value;
-                    }
-                } else {
+		} else {
                     v = alloc1(sizeof(var_t) + 2 * sizeof(int) + sz * sizeof(unsigned char));
                     bodyptr = (int) ((unsigned char *) v + sizeof(var_t) + 2 * sizeof(int));
+		}
 
-                    /* Initialize array */
-                    for (i = 0; i < sz; ++i) {
-                        *((unsigned char *) bodyptr + i) = value;
-                    }
-                }
+                /*
+		 * Initialize array
+		 * arrinitmode 0 is for string initializer "like this"
+		 * arrinitmode 1 is for list initializer {123, 456, 789 ...}
+		 */
+		if (arrinitmode == 0) {
+		  --sz; /* Hack to leave space for final null */
+		}
+                for (i = 0; i < sz; ++i) {
+		    if (arrinitmode == 0) {
+		        if (*txtPtr == '"') {
+                            if (type == TYPE_WORD) {
+                                *((int *) bodyptr + i) = 0;
+		            } else {
+				*((unsigned char *) bodyptr + i) = 0;
+			    }
+		            break;
+			} else {
+                            if (type == TYPE_WORD) {
+                                *((int *) bodyptr + i) = *txtPtr;
+			    } else {
+                                *((unsigned char *) bodyptr + i) = *txtPtr;
+			    }
+			}
+			++txtPtr;
+                    } else {
+#ifdef CBM
+		        if (*txtPtr == ']') {
+#else
+		        if (*txtPtr == '}') {
+#endif
+			    break;
+			}
+                        if (eval(0, &val)) {
+                            return 1;
+                        }
+			if (type == TYPE_WORD) {
+                            *((int *) bodyptr + i) = val;
+			} else {
+                            *((unsigned char *) bodyptr + i) = val;
+			}
+			eatspace();
+			if (*txtPtr == ',') {
+			    ++txtPtr;
+			}
+			eatspace();
+		    }
+		}
+		if (arrinitmode == 0) {
+		    ++sz; /* Reverse the hack we perpetuated above */
+		    if (*txtPtr == '"') {
+		        ++txtPtr;
+	            } else {
+		        error(ERR_TOOLONG);
+		        return 1;
+	            }
+	        } else {
+#ifdef CBM
+		    if (*txtPtr == ']') {
+#else
+		    if (*txtPtr == '}') {
+#endif
+		       ++txtPtr;
+		    } else {
+		       error(ERR_TOOLONG);
+		       return 1;
+		    }
+		}
             }
         }
 
@@ -2719,41 +2879,34 @@ unsigned char assignorcreate(unsigned char mode)
         return RET_ERROR;
     }
 
-    if (eval((mode != FOR_MODE), &j)) {
-        return RET_ERROR;
+    eatspace();
+
+    /*
+     * If it is LET or FOR, evaluate the single argument.
+     * If it is declaration, only evaluate single argument for scalars.
+     * For arrays, the initializer is evaluated inside createintvar().
+     */
+    if ((numdims == 0) || (mode == LET_MODE) || (mode == FOR_MODE)) {
+        if (eval((mode != FOR_MODE), &j)) {
+            return RET_ERROR;
+        }
     }
     switch (mode) {
 
     case WORD_MODE:
-        if (i == 0) {
-            ++i;
-        }
-        if (createintvar(name, TYPE_WORD, numdims, i, j, 0)) {
-            return RET_ERROR;
-        }
-        break;
-
     case BYTE_MODE:
         if (i == 0) {
             ++i;
         }
-        if (createintvar(name, TYPE_BYTE, numdims, i, j, 0)) {
+        if (createintvar(name, ((mode == WORD_MODE) ? TYPE_WORD : TYPE_BYTE), numdims, i, j, 0)) {
             return RET_ERROR;
         }
         break;
 
     case LET_MODE:
-	if (numdims == 0) {
-		i = -1;
-	}
-        if (setintvar(name, i, j)) {
-            return RET_ERROR;
-        }
-        break;
-
     case FOR_MODE:
 	if (numdims == 0) {
-		i = -1;
+	   i = -1;
 	}
         if (setintvar(name, i, j)) {
             return RET_ERROR;

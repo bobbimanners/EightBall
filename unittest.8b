@@ -2,7 +2,9 @@
 ' Eightball Unit Tests '
 '----------------------'
 
-word status=0
+byte status=0
+word counter=1
+word fails=0
 
 '------------------
 ' Word variables
@@ -43,7 +45,7 @@ call expect((b1==10)&&(b2==20)&&(b3=='a'))
 '------------------
 pr.msg "Word arrays:"; pr.nl
 word wpre=0
-word warr[10]=12
+word warr[10]={12,12,12,12,12,12,12,12,12,12}
 word wpost=0
 
 pr.msg "Size of word (4 for interpeter, 2 for 6502 & VM): "
@@ -60,7 +62,7 @@ call expect((wpre==0)&&(warr[0]==12)&&(warr[1]==123)&&(warr[2]==12)&&(warr[9]==1
 '------------------
 pr.msg "Byte arrays:"; pr.nl
 byte bpre=0
-byte barr[2*5]=12
+byte barr[2*5]={12,12,12,12,12,12,12,12,12,12}
 byte bpost=0
 
 call expect((&barr[2]-&barr[1])==1)
@@ -238,12 +240,12 @@ call recurse1(5, &iw)
 call expect(iw==120)
 
 pr.msg " Array pass by ref:"; pr.nl
-word AA[10]=0
+word AA[10]={}
 call setwarray(AA, 10)
 call sumwarray(AA, 10)
 call expect(iw==45)
 
-byte BB[10]=0
+byte BB[10]={}
 call setbarray(BB, 10)
 call sumbarray(BB, 10)
 call expect(iw==45)
@@ -296,6 +298,7 @@ call gp1()
 call expect(iw==1)
 
 '------------------
+call done()
 '------------------
 
 end
@@ -432,7 +435,7 @@ sub pbrsecondlevel(word XX[])
 endsub
 
 sub wrapper()
-  word xyz[10]=0
+  word xyz[10]={}
   call pbrfirstlevel(xyz)
   call expect(xyz[3]==123)
 endsub
@@ -517,12 +520,24 @@ endsub
 ' Utility subroutines
 '
 sub expect(byte b)
+  pr.dec counter
+  pr.msg ": "
+  counter=counter+1
   if b
      pr.msg "  Pass "
   else
      pr.msg "  FAIL "
+     fails=fails+1
   endif
   pr.nl
   return 0
+endsub
+
+sub done()
+  if fails==0
+    pr.msg "*** ALL "; pr.dec counter-1; pr.msg " TESTS PASSED ***"; pr.nl
+  else
+    pr.msg "*** "; pr.dec fails; pr.ch '/'; pr.dec counter-1; pr.msg " TESTS FAILED ***"; pr.nl
+  endif
 endsub
 

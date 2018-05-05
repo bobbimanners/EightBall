@@ -1,12 +1,17 @@
 ' Sieve of Eratosthenes
 
-byte A[20*20] = 1
-call doall(20, A)
+pr.msg "Sieve of Eratosthenes ..."
+
+byte A[30*30] = {}
+word i = 0
+for i = 0 : 30*30-1
+  A[i] = 1
+endfor
+call doall(30, A)
 end
 
 sub doall(word nr, byte array[])
   word n = nr * nr
-  pr.msg "Sieve of Eratosthenes ..."
   pr.msg "nr is "; pr.dec nr; pr.nl
   call sieve(n, nr, array)
   call printresults(n, array)
@@ -42,6 +47,4 @@ sub printresults(word n, byte AA[])
   pr.nl
   return 0
 endsub
-
-
 
