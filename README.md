@@ -281,8 +281,8 @@ Variables of type word are also used to store pointers (there is no pointer type
 
 Arrays of byte and word may be declared as follows.  The mandatory initializer is used to initialize the elements:
 
-    word myArray[100] = {1, 2, 3}
-    byte storage[4] = {100, 200, 300, 200+200}
+    word myArray[100] = {1, 2, 3};              ' 1, 2, 3, 0, 0, 0 ...
+    byte storage[4] = {100, 200, 300, 200+200}; ' 100, 200, 300, 400, 0, 0, 0 ...
     
 Initializer lists must be no longer than the number of elements in the array.  The following is an error:
 
