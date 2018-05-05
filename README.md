@@ -275,12 +275,35 @@ Variables of type word are also used to store pointers (there is no pointer type
 
 ### Arrays
 
-Arrays of byte and word may be declared as follows.  The mandatory initializer is used to initialize all elements:
-
-    word myArray[100] = 1
-    byte storage[10] = 0
-
 **_At present, only 1D arrays are supported, but this will be expanded in future releases._**
+
+#### Array Declaration and Initialization
+
+Arrays of byte and word may be declared as follows.  The mandatory initializer is used to initialize the elements:
+
+    word myArray[100] = {1, 2, 3}
+    byte storage[4] = {100, 200, 300, 200+200}
+    
+Initializer lists must be no longer than the number of elements in the array.  The following is an error:
+
+    word bad[3] = {1, 2, 3, 4}; ' INITIALIZER LIST TOO LONG!
+    
+If the initializer list is shorter than the number of elements in the array then the remaining elements are set to zero.
+
+It is also possible to use string literals as array initializers.  This is usually used with arrays of `byte` to initialize strings, for example:
+
+    byte msg[100] = "Please try again!"
+    
+The array `msg` will be initialized to the character values of the string literal, and a null terminator will be appended.  Because strings are null-terminated, the string initializer can be no longer than the array size *minus one*:
+
+    byte aa[4] = "ABC"; # Okay
+    byte aa[4] = "ABCD"; # TOO LONG!
+    
+Finally, note that string literals may also be used to initialize `word` arrays:
+
+   word vals[10] = "ABCABCABC"
+   
+#### Array Indexing
 
 Array elements begin from 0, so the array `storage` above has elements from 0 to 9.
 
