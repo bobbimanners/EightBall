@@ -1893,19 +1893,21 @@ void printvars()
 /* Factored out to save a few bytes
  * Used by createintvar() only.
  */
-void st_abs_word(int i) {
-    emitldi(rtSP + 1 + 2 * i);
-    emit(VM_STAWORD);
+void civ_st_rel_word(unsigned int i) {
+    emitldi(rtSP - rtFP + 2 * i);
+    emit(VM_STRWORD);
 }
 
 /* Factored out to save a few bytes
  * Used by createintvar() only.
  */
-void st_abs_byte(int i) {
-    emitldi(rtSP + 1 + i);
-    emit(VM_STABYTE);
+void civ_st_rel_byte(unsigned int i) {
+    emitldi(rtSP - rtFP + i);
+    emit(VM_STRBYTE);
 }
 
+#define STRG_INIT 0
+#define LIST_INIT 1
 /*
  * Create new integer variable (either word or byte, scalar or array)
  *
@@ -1933,7 +1935,7 @@ unsigned char createintvar(char *name,
     int i;
     int val;
     var_t *v;
-    unsigned char arrinitmode = 0; /* 0 means string initializer, 1 means list initializer */
+    unsigned char arrinitmode; /* STRG_INIT means string initializer, LIST_INIT means list initializer */
     unsigned char local = 1;
 
     v = findintvar(name, &local);       /* Only search local scope */
@@ -2009,14 +2011,14 @@ unsigned char createintvar(char *name,
 	     */
             if (numdims != 0) {
                 if (*txtPtr == '"') {
-		    arrinitmode = 0;
+		    arrinitmode = STRG_INIT;
 		    ++txtPtr;
 #ifdef CBM
                 } else if (*txtPtr == '[') {
 #else
                 } else if (*txtPtr == '{') {
 #endif
-		    arrinitmode = 1;
+		    arrinitmode = LIST_INIT;
 		    ++txtPtr;
 	        }
             }
@@ -2062,16 +2064,16 @@ unsigned char createintvar(char *name,
 
                 /*
 		 * Initialize array
-		 * arrinitmode 0 is for string initializer "like this"
-		 * arrinitmode 1 is for list initializer {123, 456, 789 ...}
+		 * arrinitmode STRG_INIT is for string initializer "like this"
+		 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
 		 */
-		if (arrinitmode == 0) {
+		if (arrinitmode == STRG_INIT) {
 		  --sz; /* Hack to leave space for final null */
 		}
                 for (i = 0; i < sz; ++i) {
-		    if (arrinitmode == 0) {
+		    if (arrinitmode == STRG_INIT) {
 			emitldi((*txtPtr == '"') ? 0 : *txtPtr);
-                        ((type == TYPE_WORD) ? st_abs_word(i) : st_abs_byte(i));
+                        ((type == TYPE_WORD) ? civ_st_rel_word(i) : civ_st_rel_byte(i));
 			if (*txtPtr == '"') {
 			    break;
 			}
@@ -2087,7 +2089,7 @@ unsigned char createintvar(char *name,
                         if (eval(0, &val)) {
                             return 1;
                         }
-                        ((type == TYPE_WORD) ? st_abs_word(i) : st_abs_byte(i));
+                        ((type == TYPE_WORD) ? civ_st_rel_word(i) : civ_st_rel_byte(i));
 			eatspace();
 			if (*txtPtr == ',') {
 			    ++txtPtr;
@@ -2095,7 +2097,7 @@ unsigned char createintvar(char *name,
 			eatspace();
 		    }
 		}
-		if (arrinitmode == 0) {
+		if (arrinitmode == STRG_INIT) {
 		    ++sz; /* Reverse the hack we perpetuated above */
 		    if (*txtPtr == '"') {
 		        ++txtPtr;
@@ -2126,53 +2128,45 @@ unsigned char createintvar(char *name,
 
                 /*
 		 * Initialize array
-		 * arrinitmode 0 is for string initializer "like this"
-		 * arrinitmode 1 is for list initializer {123, 456, 789 ...}
+		 * arrinitmode STRG_INIT is for string initializer "like this"
+		 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
 		 */
-		if (arrinitmode == 0) {
+		if (arrinitmode == STRG_INIT) {
 		  --sz; /* Hack to leave space for final null */
 		}
                 for (i = 0; i < sz; ++i) {
-		    if (arrinitmode == 0) {
+		    if (arrinitmode == STRG_INIT) {
 		        if (*txtPtr == '"') {
-                            if (type == TYPE_WORD) {
-                                *((int *) bodyptr + i) = 0;
-		            } else {
-				*((unsigned char *) bodyptr + i) = 0;
-			    }
-		            break;
+			    val = 0;
 			} else {
-                            if (type == TYPE_WORD) {
-                                *((int *) bodyptr + i) = *txtPtr;
-			    } else {
-                                *((unsigned char *) bodyptr + i) = *txtPtr;
-			    }
+			    val = *txtPtr;
+			    ++txtPtr;
 			}
-			++txtPtr;
                     } else {
 #ifdef CBM
 		        if (*txtPtr == ']') {
 #else
 		        if (*txtPtr == '}') {
 #endif
-			    break;
-			}
-                        if (eval(0, &val)) {
-                            return 1;
-                        }
-			if (type == TYPE_WORD) {
-                            *((int *) bodyptr + i) = val;
+			    val =0;
 			} else {
-                            *((unsigned char *) bodyptr + i) = val;
+                            if (eval(0, &val)) {
+                                return 1;
+                            }
+			    eatspace();
+			    if (*txtPtr == ',') {
+			        ++txtPtr;
+			    }
+			    eatspace();
 			}
-			eatspace();
-			if (*txtPtr == ',') {
-			    ++txtPtr;
-			}
-			eatspace();
+		    }
+		    if (type == TYPE_WORD) {
+                        *((int *) bodyptr + i) = val;
+		    } else {
+                        *((unsigned char *) bodyptr + i) = val;
 		    }
 		}
-		if (arrinitmode == 0) {
+		if (arrinitmode == STRG_INIT) {
 		    ++sz; /* Reverse the hack we perpetuated above */
 		    if (*txtPtr == '"') {
 		        ++txtPtr;
@@ -2273,6 +2267,20 @@ void vars_deletecallframe()
     }
 }
 
+/* Factored out to save a few bytes
+ * Used by setintvar() only.
+ */
+void siv_st_abs(unsigned char type) {
+    ((type == TYPE_WORD) ? emit(VM_STAWORD) : emit(VM_STABYTE));
+}
+
+/* Factored out to save a few bytes
+ * Used by setintvar() only.
+ */
+void siv_st_rel(unsigned char type) {
+    ((type == TYPE_WORD) ? emit(VM_STRWORD) : emit(VM_STRBYTE));
+}
+
 /*
  * Set existing integer variable
  * name is the variable name
@@ -2286,6 +2294,7 @@ void vars_deletecallframe()
 unsigned char setintvar(char *name, int idx, int value)
 {
     unsigned char numdims;
+    unsigned char type;
     void *bodyptr;
     unsigned char local = 0;
 
@@ -2296,6 +2305,7 @@ unsigned char setintvar(char *name, int idx, int value)
         return 1;
     }
     numdims = (ptr->type & 0xf0) >> 4;
+    type = ptr->type & 0x0f;
 
     if (numdims == 0) {
 	/*
@@ -2315,21 +2325,13 @@ unsigned char setintvar(char *name, int idx, int value)
              * to the frame pointer.
              */
             emitldi(*getptrtoscalarword(ptr));
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
-                if (local && compilingsub) {
-                    emit(VM_STRWORD);
-                } else {
-                    emit(VM_STAWORD);
-                }
+            if (local && compilingsub) {
+	        siv_st_rel(type);
             } else {
-                if (local && compilingsub) {
-                    emit(VM_STRBYTE);
-                } else {
-                    emit(VM_STABYTE);
-                }
+		siv_st_abs(type);
             }
         } else {
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (type == TYPE_WORD) {
                 *getptrtoscalarword(ptr) = value;
             } else {
                 *getptrtoscalarbyte(ptr) = value;
@@ -2347,57 +2349,37 @@ unsigned char setintvar(char *name, int idx, int value)
         bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
-            /* *** Index is on the stack (Y), and initializer is on the stack (X) *** */
+            /* *** Index is on the stack (X) */
             emit(VM_SWAP);
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (type == TYPE_WORD) {
 		emitldi(1);
 		emit(VM_LSH);
-                emitldi((int) ((int *) bodyptr));
-		/*
-		 * If the array size field is -1, this means the bodyptr is a
-		 * pointer to a pointer to the body (rather than pointer to
-		 * the body), so it needs to be dereferenced one more time.
-		 */
+	    }
+            emitldi((int) ((int *) bodyptr));
+	    /*
+	     * If the array size field is -1, this means the bodyptr is a
+	     * pointer to a pointer to the body (rather than pointer to
+	     * the body), so it needs to be dereferenced one more time.
+	     */
+            if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+	        emit(VM_LDRWORD);
+	    }
+            emit(VM_ADD);
+            if (local && compilingsub) {
                 if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		    emit(VM_LDRWORD);
+		    siv_st_abs(type);
+		} else {
+		    siv_st_rel(type);
 		}
-                emit(VM_ADD);
-                if (local && compilingsub) {
-                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-                        emit(VM_STAWORD);
-		    } else {
-                        emit(VM_STRWORD);
-		    }
-                } else {
-                    emit(VM_STAWORD);
-                }
             } else {
-                emitldi((int) ((int *) bodyptr));
-		/*
-		 * If the array size field is -1, this means the bodyptr is a
-		 * pointer to a pointer to the body (rather than pointer to
-		 * the body), so it needs to be dereferenced one more time.
-		 */
-                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		    emit(VM_LDRWORD);
-		}
-                emit(VM_ADD);
-                if (local && compilingsub) {
-                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-                        emit(VM_STABYTE);
-		    } else {
-                        emit(VM_STRBYTE);
-		    }
-                } else {
-                    emit(VM_STABYTE);
-                }
+		siv_st_abs(type);
             }
         } else {
             if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
                 error(ERR_SUBSCR);
                 return 1;
             }
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (type == TYPE_WORD) {
                 *((int *) bodyptr + idx) = value;
             } else {
                 *((unsigned char *) bodyptr + idx) = value;
@@ -2410,6 +2392,20 @@ unsigned char setintvar(char *name, int idx, int value)
 
 /* Special hack ... */
 unsigned char compiletimelookup = 0;
+
+/* Factored out to save a few bytes
+ * Used by getintvar() only.
+ */
+void giv_ld_abs(unsigned char type) {
+    ((type == TYPE_WORD) ? emit(VM_LDAWORD) : emit(VM_LDABYTE));
+}
+
+/* Factored out to save a few bytes
+ * Used by getintvar() only.
+ */
+void giv_ld_rel(unsigned char type) {
+    ((type == TYPE_WORD) ? emit(VM_LDRWORD) : emit(VM_LDRBYTE));
+}
 
 /*
  * Get existing integer variable
@@ -2439,11 +2435,7 @@ unsigned char getintvar(char *name,
         return 1;
     }
     numdims = (ptr->type & 0xf0) >> 4;
-    if ((ptr->type & 0x0f) == TYPE_WORD) {
-        *type = TYPE_WORD;
-    } else {
-        *type = TYPE_BYTE;
-    }
+    *type = (ptr->type & 0x0f);
 
     if (numdims == 0) {
 	/*
@@ -2476,27 +2468,16 @@ unsigned char getintvar(char *name,
 			emit(VM_RTOA);
                     }
                 } else {
-                    if ((ptr->type & 0x0f) == TYPE_WORD) {
-                        if (local && compilingsub) {
-                            emitldi(*getptrtoscalarword(ptr));
-                            emit(VM_LDRWORD);
-                        } else {
-                            emitldi(*getptrtoscalarword(ptr));
-                            emit(VM_LDAWORD);
-                        }
+                    emitldi(*getptrtoscalarword(ptr));
+                    if (local && compilingsub) {
+		        giv_ld_rel(*type);
                     } else {
-                        if (local && compilingsub) {
-                            emitldi(*getptrtoscalarword(ptr));
-                            emit(VM_LDRBYTE);
-                        } else {
-                            emitldi(*getptrtoscalarword(ptr));
-                            emit(VM_LDABYTE);
-                        }
+			giv_ld_abs(*type);
                     }
                 }
             }
         } else {
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (*type == TYPE_WORD) {
                 if (address) {
                     *val = (int) getptrtoscalarword(ptr);
                 } else {
@@ -2531,74 +2512,47 @@ unsigned char getintvar(char *name,
 
         if (compile) {
             /* *** Index is on the stack (X) *** */
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (*type == TYPE_WORD) {
 		emitldi(1);
 		emit(VM_LSH);
-                emitldi((int) ((int *) bodyptr));
-		/*
-		 * If the array size field is -1, this means the bodyptr is a
-		 * pointer to a pointer to the body (rather than pointer to
-		 * the body), so it needs to be dereferenced one more time.
-		 */
-                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		    emit(VM_LDRWORD);
-		}
-                emit(VM_ADD);
-		if (!address) {
-                    if (local && compilingsub) {
-                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		            emit(VM_LDAWORD);
-			} else {
-                       	    emit(VM_LDRWORD);
-			}
-                    } else {
-                        emit(VM_LDAWORD);
-                    }
-		} else {
-                    if (local && compilingsub) {
-                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
-			    /* Convert to absolute address */
-			    emit(VM_RTOA);
-			}
+	    }
+            emitldi((int) ((int *) bodyptr));
+	    /*
+	     * If the array size field is -1, this means the bodyptr is a
+	     * pointer to a pointer to the body (rather than pointer to
+	     * the body), so it needs to be dereferenced one more time.
+	     */
+            if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+	        emit(VM_LDRWORD);
+	    }
+            emit(VM_ADD);
+	    if (!address) {
+                if (local && compilingsub) {
+                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
+			    print("PASS BY REF\n");
+		        giv_ld_abs(*type);
+		    } else {
+			    print("REL\n");
+		        giv_ld_rel(*type);
 		    }
-		}
-            } else {
-                emitldi((int) ((int *) bodyptr));
-		/*
-		 * If the array size field is -1, this means the bodyptr is a
-		 * pointer to a pointer to the body (rather than pointer to
-		 * the body), so it needs to be dereferenced one more time.
-		 */
-                if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		    emit(VM_LDRWORD);
-		}
-                emit(VM_ADD);
-		if (!address) {
-                    if (local && compilingsub) {
-                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		            emit(VM_LDABYTE);
-			} else {
-                       	    emit(VM_LDRBYTE);
-			}
-                    } else {
-                        emit(VM_LDABYTE);
-                    }
-		} else {
-                    if (local && compilingsub) {
-                        if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
-			    /* Convert to absolute address */
-			    emit(VM_RTOA);
-			}
+                } else {
+		    giv_ld_abs(*type);
+                }
+	    } else {
+                if (local && compilingsub) {
+                    if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
+	                /* Convert to absolute address */
+			emit(VM_RTOA);
 		    }
-		}
-            }
+	        }
+    	    }
         } else {
             if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
                 error(ERR_SUBSCR);
                 return 1;
             }
 
-            if ((ptr->type & 0x0f) == TYPE_WORD) {
+            if (*type == TYPE_WORD) {
                 if (address) {
                     *val = (int) ((int *) bodyptr + idx);
                 } else {
