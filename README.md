@@ -48,7 +48,7 @@ The following 6502-based systems are currently supported:
 * Commodore 64 - EightBall should run on any C64.
 * Commodore VIC-20 - EightBall runs on a VIC-20 with 32K of additional RAM.
 
-EightBall also runs on Linux (built as a 32 bit process using `gcc -m32`.
+EightBall also runs on Linux (built as a 32 bit process using `gcc -m32`.)
 
 ## Licence
 Free Software licenced under GPL v3.
