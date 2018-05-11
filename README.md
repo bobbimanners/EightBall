@@ -362,6 +362,8 @@ or character:
     byte c = 'a'
     word w = 'Z'
 
+Character literals assume the ASCII value of the character in the single quotes.
+
 ### Operators
 EightBall supports most of C's arithmetic, logical and bitwise operators.  They have the same precedence as in C as well.  Since the Commodore machines do not have all the ASCII character, some substitutions have been made (shown in parenthesis below.)
 
