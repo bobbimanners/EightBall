@@ -261,6 +261,14 @@ It is quite large so it does not load in all 8-bit platforms.  Deleting the comm
 
 ## Variables
 
+### Defined Constants
+
+EightBall allows the programmer to define constant values as follows:
+
+    const size = 10
+    
+Constant values are represented as 16 bit words internally.
+
 ### Simple Types
 
 EightBall has two basic types: byte (8 bits) and word (16 bits).
@@ -268,9 +276,12 @@ EightBall has two basic types: byte (8 bits) and word (16 bits).
     word counter = 1000
     byte xx = 0
 
-Variables must be declared before use.  Variables **must** be initialized.
+Variables must be declared before use.  Variables **must** be initialized.  A constant may be used as an initializer:
 
-The first four letters of the variable name are significant, any letters after that are simply ignored by the parser.
+    const size = 10*10
+    word mysize = size+3
+
+The first four letters of the variable name are significant (this may be increased by changing `VARNUMCHARS` in `eightball.c`).  Any letters after that are simply ignored by the parser.
 
 Variables of type word are also used to store pointers (there is no pointer type in EightBall).
 
@@ -305,11 +316,11 @@ The array `msg` will be initialized to the character values of the string litera
 Note that string literals may also be used to initialize `word` arrays:
 
     word vals[10] = "ABCABCABC"
- 
+
 Since the Commodore VIC20 and C64 lack the `{` and `}` symbols, `[` and `]` are used in their place, for example
 
     word commodore[10] = [10, 9, 8 ]
-
+    
 #### Array Indexing
 
 Array elements begin from 0, so the array `storage` above has elements from 0 to 9.
@@ -317,17 +328,24 @@ Array elements begin from 0, so the array `storage` above has elements from 0 to
     storage[0] = 0;  ' First element
     storage[9] = 99; ' Last element
 
-Array dimensions must be known at compile time, but expressions made up of constants are allowed for array dimensions.  This is allowed:
+Array dimensions must be known at compile time, but expressions made up of constants (both [defined constants](#defined-constants) and [literal constants](#literal-constants) are allowed for array dimensions and for the members of the initializer list (if any).  This is allowed:
 
-    word knownsize[10*10+5] = 0;
-    
-But this is illegal:
+    word knownsize[10*10+5] = {}
 
-    word knownsize[10*myvar] = 0;
+And so is this:
+
+    const width = 20
+    const margin = 4
+    word knownsize[10*width+margin] = {margin, margin*2, margin*3}
+
+But this is illegal because `myvar` is a regular variable, not a `const`:
+
+    word myvar = 10
+    word knownsize[10*myvar] = {1, 2, 3}
 
 ## Expressions
 
-### Constants
+### Literal Constants
 Constants may be decimal:
 
     byte a = 10
