@@ -90,10 +90,10 @@ ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
 	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
 unittest.8bp: unittest.8b
-	tr \\100-\\132 \\300-\\332 <unittest.8b | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
+	tr {} [] <unittest.8b | \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
 
 sieve4.8bp: sieve4.8b
-	tr \\100-\\132 \\300-\\332 <sieve4.8b | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII
+	tr {} [] <sieve4.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII
 
 test.d64: 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg unittest.8bp sieve4.8bp
 	c1541 -format eb,00 d64 test.d64

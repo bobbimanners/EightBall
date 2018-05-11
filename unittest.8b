@@ -298,6 +298,22 @@ call gp1()
 call expect(iw==1)
 
 '------------------
+' Consts
+'------------------
+pr.msg "Consts:"; pr.nl
+const cstsz=10
+word AAA[cstsz]={}
+byte iii=0
+word summ=0
+for iii=0:cstsz-1
+  AAA[iii]=10
+endfor
+for iii=0:cstsz-1
+  summ=summ+AAA[iii]
+endfor
+call expect(summ==cstsz*10)
+
+'------------------
 call done()
 '------------------
 

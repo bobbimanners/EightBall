@@ -156,6 +156,9 @@ void linksubs(void);
 char compile = 0;               /* 0 means interpret, 1 means compile          */
 char compilingsub = 0;          /* 1 when compiling subroutine, 0 otherwise    */
 char onlyconstants = 0;         /* 0 is normal, 1 means only allow const exprs */
+char compiletimelookup = 0;     /* When set to 1, getintvar() will do lookup   */
+                                /* rather than code generation                 */
+
 char readbuf[255];              /* Buffer for reading from file                */
 char lnbuf[255];                /* Input text line buffer                      */
 char *txtPtr;                   /* Pointer to next character to read in lnbuf  */
@@ -207,6 +210,7 @@ int counter;
 
 /*
  * Holds the return value from a subroutine / function
+ * (for the interpreter only)
  */
 int retregister = 0;
 
@@ -325,8 +329,9 @@ const char unaryops[] = "-+!~*^";
 #define ERR_DIVZERO 121         /* Divide by zero     */
 #define ERR_VALUE   122         /* Bad value          */
 #define ERR_CONST   123         /* Const value reqd   */
-#define ERR_TOOLONG 124         /* Initializer too lng*/
-#define ERR_LINK    125         /* Linkage error      */
+#define ERR_STCONST 124         /* Const value reqd   */
+#define ERR_TOOLONG 125         /* Initializer too lng*/
+#define ERR_LINK    126         /* Linkage error      */
 
 /*
  * Error reporting
@@ -369,16 +374,16 @@ void error(unsigned char errcode)
         print("unexpected extra");
         break;
     case ERR_DIM:
-        print("bad dimension");
+        print("bad dimn");
         break;
     case ERR_SUBSCR:
-        print("bad subscript");
+        print("bad idx");
         break;
     case ERR_RUNSUB:
         print("ran into sub");
         break;
     case ERR_STR:
-        print("bad string");
+        print("bad str");
         break;
     case ERR_FILE:
         print("file");
@@ -390,22 +395,25 @@ void error(unsigned char errcode)
         print("bad expr");
         break;
     case ERR_NUM:
-        print("bad number");
+        print("bad num");
         break;
     case ERR_ARG:
-        print("argument");
+        print("arg");
         break;
     case ERR_TYPE:
         print("type");
         break;
     case ERR_DIVZERO:
-        print("div by zero");
+        print("div/0");
         break;
     case ERR_VALUE:
-	print("bad value");
+	print("bad val");
 	break;
     case ERR_CONST:
 	print("not const");
+	break;
+    case ERR_STCONST:
+	print("const");
 	break;
     case ERR_TOOLONG:
         print("too long");
@@ -414,7 +422,7 @@ void error(unsigned char errcode)
 	print("link");
 	break;
     default:
-        print("unknown");
+        print("?");
     }
 }
 
@@ -904,7 +912,6 @@ while (*txtPtr == ' ') { \
  */
 unsigned char expect(unsigned char token)
 {
-
     if (*txtPtr == token) {
         ++txtPtr;               // expect() only called for one char tokens
         eatspace();
@@ -1000,11 +1007,6 @@ unsigned char P()
 
     if ((*txtPtr == '&') || (isalphach(*txtPtr))) {
 
-        if (onlyconstants) {
-	    error(ERR_CONST);
-	    return 1;
-        }
-
         addressmode = 0;
 
         /*
@@ -1046,6 +1048,10 @@ unsigned char P()
 
         } else if (*txtPtr == '(') {
 
+	    /*
+	     * Function invokation
+	     */
+
 	    if (onlyconstants) {
 		error(ERR_CONST);
 		return 1;
@@ -1063,7 +1069,6 @@ unsigned char P()
 		    return 1;
 	        }
                 pop_operator_stack();
-                goto skip_var;      // MESSY!!
 	    } else {
 
                 push_operator_stack(SENTINEL);
@@ -1113,14 +1118,34 @@ unsigned char P()
                 pop_operator_stack();
 
                 push_operand_stack(retregister);
-                goto skip_var;      // MESSY!!
             }
+            goto skip_var;      // MESSY!!
+	}
+
+	if (compile) {
+	    compiletimelookup = 1;
+            if (getintvar(key, idx, &arg, &type, addressmode)) {
+                error(ERR_VAR);
+                return 1;
+            }
+
+	    if (type & 0x20) {
+		push_operand_stack(arg);
+		goto skip_var;
+	    }
 	}
 
         if (getintvar(key, idx, &arg, &type, addressmode)) {
-            error(ERR_VAR);
-            return 1;
+	    error(ERR_VAR);
+	    return 1;
+	}
+
+	/* If onlyconstants is set then only allow const variables */
+        if (onlyconstants && !(type & 0x20)) {
+	    error(ERR_CONST);
+	    return 1;
         }
+
         if (!compile) {
             push_operand_stack(arg);
         }
@@ -1266,7 +1291,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-#define HEAP2LIM (char*)0x8c00 
+#define HEAP2LIM (char*)0x8b00 
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
@@ -1287,7 +1312,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
-#define HEAP2LIM (char*)0x7300
+#define HEAP2LIM (char*)0x7200
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
@@ -1396,7 +1421,7 @@ void free1(unsigned int bytes)
  * instructions that match calls to
  * rt_push_callstack().
  */
-int rt_push_callstack(unsigned int bytes)
+unsigned int rt_push_callstack(unsigned int bytes)
 {
     if ((rtSP - bytes) < RTCALLSTACKLIM) {
         print("No tgt mem!\n");
@@ -1760,9 +1785,10 @@ int calllevel;
 /*
  * Entry in the variable table
  * name: first VARNUMCHARS characters as key
- * type: encodes the type in the least significant 4 bits (TYPE_WORD or
- *       TYPE_BYTE).  The most significant 4 bits are zero for scalars and
- *       encode the number of dimensions in the case of an array.
+ * type: encodes the type in the least significant 4 bits (bits 3:0) encode
+ *       the data type (TYPE_WORD or TYPE_BYTE).  The next least significant
+ *       bit (bit 4) is 0 for a scalar value and 1 for an array.  Bit 5 is
+ *       0 for a normal variable and 1 for a constant.
  * next: pointer to next vartabent.
  */
 struct vartabent {
@@ -1809,8 +1835,6 @@ var_t *findintvar(char *name, unsigned char *local)
 {
     var_t *ptr;
 
-    //getvarkey(name, key);
-
     /* Search locals */
     ptr = varslocal;
     while (ptr) {
@@ -1849,9 +1873,11 @@ void clearvars()
     varslocal = NULL;
 }
 
-enum types { TYPE_WORD,         /* Word variable - 16 bits */
-    TYPE_BYTE
-};                              /* Byte variable - 8 bits  */
+enum types {
+    TYPE_CONST,        /* Stored as TYPE_WORD     */
+    TYPE_WORD,         /* Word variable - 16 bits */
+    TYPE_BYTE          /* Byte variable - 8 bits  */
+};
 
 /*
  * Print all variables as a table
@@ -1865,20 +1891,17 @@ void printvars()
         printchar(v->name[1] ? v->name[1] : ' ');
         printchar(v->name[2] ? v->name[2] : ' ');
         printchar(v->name[3] ? v->name[3] : ' ');
-        if (v->type & 0xf0) {
+        if (v->type & 0x10) {
             printchar('[');
             printdec(*(int *)
                      ((unsigned char *) v + sizeof(var_t) + sizeof(int)));
             printchar(']');
         }
         printchar(' ');
-        if ((v->type & 0x0f) == TYPE_WORD) {
-            printchar('w');
-        } else {
-            printchar('b');
-        }
+	printchar(((v->type & 0x0f) == TYPE_WORD) ? 'w' : 'b');
+        printchar((v->type & 0x20) ? 'c' : ' ');
         printchar(' ');
-        if ((v->type & 0xf0) == 0) {
+        if ((v->type & 0x10) == 0) {
             if (v->type == TYPE_WORD) {
                 printdec(*getptrtoscalarword(v));
             } else {
@@ -1912,10 +1935,11 @@ void civ_st_rel_byte(unsigned int i) {
  * Create new integer variable (either word or byte, scalar or array)
  *
  * name is the variable name
- * type specifies if it is a word or byte variable
- * numdims in the number of dimensions (0 for scalar, >=1 for array)
- * sz is the size - ***  TODO Only supports 1D arrays for now
- * value is the initializer
+ * type specifies if it is a word (TYPE_WORD) variable, a byte variable
+ * (TYPE_BYTE), or a constant (TYPE_CONST).
+ * isarray is 0 for scalar variable, 1 for array variable
+ * sz is the size (for an array only)
+ * value is the initializer (for a scalar only)  TODO: Can save a word of arguments here!!!!!
  * bodyptr is used when allocating arrays.  If bodyptr is null then the
  * function will allocate space for the array data block, following the
  * array header.  If, on the other hand, a non-null pointer is passed then
@@ -1929,7 +1953,7 @@ void civ_st_rel_byte(unsigned int i) {
  */
 unsigned char createintvar(char *name,
                            enum types type,
-                           unsigned char numdims,
+                           unsigned char isarray,
                            int sz, int value, int bodyptr)
 {
     int i;
@@ -1937,8 +1961,9 @@ unsigned char createintvar(char *name,
     var_t *v;
     unsigned char arrinitmode; /* STRG_INIT means string initializer, LIST_INIT means list initializer */
     unsigned char local = 1;
+    unsigned char isconst = 0;
 
-    v = findintvar(name, &local);       /* Only search local scope */
+    v = findintvar(name, &local); /* local = 1, so only search local scope */
 
     if (v) {
         error(ERR_REDEF);
@@ -1950,7 +1975,12 @@ unsigned char createintvar(char *name,
         return 1;
     }
 
-    if (numdims == 0) {
+    if (type == TYPE_CONST) {
+        isconst = 1;
+	type = TYPE_WORD;
+    }
+
+    if (!isarray) {
         /*
          * Scalar variables
          */
@@ -1963,19 +1993,16 @@ unsigned char createintvar(char *name,
              * for globals it is an ABSOLUTE address.
              */
             v = alloc1(sizeof(var_t) + sizeof(int));
-            if (type == TYPE_WORD) {
-                if (compilingsub) {
-                    *getptrtoscalarword(v) = rt_push_callstack(2) - rtFP;       /* Relative to Frame Ptr */
-                } else {
-                    *getptrtoscalarword(v) = rt_push_callstack(2) + 1;      /* Absolute addr */
-                }
+	    if (isconst) {
+		/* Store value of const.  No code generation. */
+                *getptrtoscalarword(v) = value;
+	    } else if (type == TYPE_WORD) {
+		/* Relative if compiling sub, absolute otherwise */
+                *getptrtoscalarword(v) = (compilingsub ? (rt_push_callstack(2) - rtFP) : (rt_push_callstack(2) + 1));
                 emit(VM_PSHWORD);
             } else {
-                if (compilingsub) {
-                    *getptrtoscalarword(v) = rt_push_callstack(1) - rtFP;       /* Relative to Frame Ptr */
-                } else {
-                    *getptrtoscalarword(v) = rt_push_callstack(1) + 1;      /* Absolute addr */
-                }
+		/* Relative if compiling sub, absolute otherwise */
+                *getptrtoscalarword(v) = (compilingsub ? (rt_push_callstack(1) - rtFP) : (rt_push_callstack(1) + 1));
                 emit(VM_PSHBYTE);
             }
         } else {
@@ -2009,7 +2036,7 @@ unsigned char createintvar(char *name,
             /*
 	     * For arrays we parse the initializer here.
 	     */
-            if (numdims != 0) {
+            if (isarray) {
                 if (*txtPtr == '"') {
 		    arrinitmode = STRG_INIT;
 		    ++txtPtr;
@@ -2044,22 +2071,15 @@ unsigned char createintvar(char *name,
                  * The following generates code to allocate the array
 		 * TODO: This is not very efficient. Need a VM instruction to allocate a block.
                  */
-		emitldi(0); /* Value to fill with */
                 emitldi(sz);
                 emit(VM_DEC);
                 emit(VM_DUP);
-                emitldi(3);
-                emit(VM_PICK);
-                if (type == TYPE_WORD) {
-                    emit(VM_PSHWORD);
-                } else {
-                    emit(VM_PSHBYTE);
-                }
+		emitldi(0); /* Value to fill with */
+		emit((type == TYPE_WORD) ? VM_PSHWORD : VM_PSHBYTE);
                 emitldi(0);
                 emit(VM_NEQL);
-                emitldi(rtPC - 11);
+                emitldi(rtPC - 10);
                 emit(VM_BRNCH);
-		emit(VM_DROP);
 		emit(VM_DROP);
 
                 /*
@@ -2080,10 +2100,11 @@ unsigned char createintvar(char *name,
 		        ++txtPtr;
 		    } else {
 #ifdef CBM
-		        if (*txtPtr == ']') {
+		        if (*txtPtr == ']')
 #else
-		        if (*txtPtr == '}') {
+		        if (*txtPtr == '}')
 #endif
+			{
 			    break;
 			}
                         if (eval(0, &val)) {
@@ -2095,26 +2116,6 @@ unsigned char createintvar(char *name,
 			    ++txtPtr;
 			}
 			eatspace();
-		    }
-		}
-		if (arrinitmode == STRG_INIT) {
-		    ++sz; /* Reverse the hack we perpetuated above */
-		    if (*txtPtr == '"') {
-		        ++txtPtr;
-	            } else {
-		        error(ERR_TOOLONG);
-		        return 1;
-	            }
-	        } else {
-#ifdef CBM
-		    if (*txtPtr == ']') {
-#else
-		    if (*txtPtr == '}') {
-#endif
-		       ++txtPtr;
-		    } else {
-		       error(ERR_TOOLONG);
-		       return 1;
 		    }
 		}
             } else {
@@ -2144,10 +2145,11 @@ unsigned char createintvar(char *name,
 			}
                     } else {
 #ifdef CBM
-		        if (*txtPtr == ']') {
+		        if (*txtPtr == ']')
 #else
-		        if (*txtPtr == '}') {
+		        if (*txtPtr == '}')
 #endif
+			{
 			    val =0;
 			} else {
                             if (eval(0, &val)) {
@@ -2166,27 +2168,28 @@ unsigned char createintvar(char *name,
                         *((unsigned char *) bodyptr + i) = val;
 		    }
 		}
-		if (arrinitmode == STRG_INIT) {
-		    ++sz; /* Reverse the hack we perpetuated above */
-		    if (*txtPtr == '"') {
-		        ++txtPtr;
-	            } else {
-		        error(ERR_TOOLONG);
-		        return 1;
-	            }
-	        } else {
-#ifdef CBM
-		    if (*txtPtr == ']') {
-#else
-		    if (*txtPtr == '}') {
-#endif
-		       ++txtPtr;
-		    } else {
-		       error(ERR_TOOLONG);
-		       return 1;
-		    }
-		}
             }
+	    if (arrinitmode == STRG_INIT) {
+	        ++sz; /* Reverse the hack we perpetuated above */
+		if (*txtPtr == '"') {
+		    ++txtPtr;
+	        } else {
+		    error(ERR_TOOLONG);
+		    return 1;
+	        }
+	    } else {
+#ifdef CBM
+	        if (*txtPtr == ']')
+#else
+		if (*txtPtr == '}')
+#endif
+	        {
+	            ++txtPtr;
+		} else {
+		   error(ERR_TOOLONG);
+		   return 1;
+		}
+	    }
         }
 
         /* Store pointer to payload */
@@ -2197,7 +2200,7 @@ unsigned char createintvar(char *name,
     }
 
     strncpy(v->name, name, VARNUMCHARS);
-    v->type = ((numdims & 0x0f) << 4) | type;
+    v->type = (isconst << 5) | (isarray << 4) | type;
     v->next = NULL;
 
     if (varsend) {
@@ -2293,7 +2296,7 @@ void siv_st_rel(unsigned char type) {
  */
 unsigned char setintvar(char *name, int idx, int value)
 {
-    unsigned char numdims;
+    unsigned char isarray;
     unsigned char type;
     void *bodyptr;
     unsigned char local = 0;
@@ -2304,10 +2307,16 @@ unsigned char setintvar(char *name, int idx, int value)
         error(ERR_VAR);
         return 1;
     }
-    numdims = (ptr->type & 0xf0) >> 4;
+    isarray = (ptr->type & 0x10) >> 4;
     type = ptr->type & 0x0f;
 
-    if (numdims == 0) {
+    /* Error if try to set const */
+    if (ptr->type & 0x20) {
+        error(ERR_STCONST);
+	return 1;
+    }
+
+    if (!isarray) {
 	/*
 	 * Scalars
 	 */
@@ -2390,21 +2399,18 @@ unsigned char setintvar(char *name, int idx, int value)
     return 0;
 }
 
-/* Special hack ... */
-unsigned char compiletimelookup = 0;
-
 /* Factored out to save a few bytes
  * Used by getintvar() only.
  */
 void giv_ld_abs(unsigned char type) {
-    ((type == TYPE_WORD) ? emit(VM_LDAWORD) : emit(VM_LDABYTE));
+    (((type & 0x0f) == TYPE_WORD) ? emit(VM_LDAWORD) : emit(VM_LDABYTE));
 }
 
 /* Factored out to save a few bytes
  * Used by getintvar() only.
  */
 void giv_ld_rel(unsigned char type) {
-    ((type == TYPE_WORD) ? emit(VM_LDRWORD) : emit(VM_LDRBYTE));
+    (((type & 0x0f) == TYPE_WORD) ? emit(VM_LDRWORD) : emit(VM_LDRBYTE));
 }
 
 /*
@@ -2424,7 +2430,7 @@ unsigned char getintvar(char *name,
                         int *val,
                         unsigned char *type, unsigned char address)
 {
-    unsigned char numdims;
+    unsigned char isarray;
     void *bodyptr;
     unsigned char local = 0;
 
@@ -2434,10 +2440,20 @@ unsigned char getintvar(char *name,
         error(ERR_VAR);
         return 1;
     }
-    numdims = (ptr->type & 0xf0) >> 4;
-    *type = (ptr->type & 0x0f);
+    isarray = (ptr->type & 0x10) >> 4;
+    *type = ptr->type;
 
-    if (numdims == 0) {
+    if (compiletimelookup) {
+        /*
+         * Special hack to allow lookup (rather than code
+         * generation) during compilation.
+         */
+        *val = *getptrtoscalarword(ptr);
+        compiletimelookup = 0;
+        return 0;
+    }
+
+    if (!isarray) {
 	/*
 	 * Scalars
 	 */
@@ -2447,37 +2463,28 @@ unsigned char getintvar(char *name,
 	    return 1;
 	}
         if (compile) {
-            if (compiletimelookup) {
-                /*
-                 * Special hack to allow lookup (rather than code
-                 * generation) during compilation.
-                 */
-                *val = *getptrtoscalarword(ptr);
-
+            /*
+             * When we are at the top level scope (global scope), all
+             * variables are globals and we use ABSOLUTE addressing.
+             * When we are at function scope, globals still use
+             * ABSOLUTE addressing, but locals are addressed RELATIVE
+             * to the frame pointer.
+             */
+            if (address) {
+                emitldi(*getptrtoscalarword(ptr));
+                if (local && compilingsub) {
+                    emit(VM_RTOA);
+                }
             } else {
-                /*
-                 * When we are at the top level scope (global scope), all
-                 * variables are globals and we use ABSOLUTE addressing.
-                 * When we are at function scope, globals still use
-                 * ABSOLUTE addressing, but locals are addressed RELATIVE
-                 * to the frame pointer.
-                 */
-                if (address) {
-                    emitldi(*getptrtoscalarword(ptr));
-                    if (local && compilingsub) {
-			emit(VM_RTOA);
-                    }
+                emitldi(*getptrtoscalarword(ptr));
+                if (local && compilingsub) {
+                    giv_ld_rel(*type);
                 } else {
-                    emitldi(*getptrtoscalarword(ptr));
-                    if (local && compilingsub) {
-		        giv_ld_rel(*type);
-                    } else {
-			giv_ld_abs(*type);
-                    }
+                    giv_ld_abs(*type);
                 }
             }
         } else {
-            if (*type == TYPE_WORD) {
+            if ((*type & 0x0f) == TYPE_WORD) {
                 if (address) {
                     *val = (int) getptrtoscalarword(ptr);
                 } else {
@@ -2512,7 +2519,7 @@ unsigned char getintvar(char *name,
 
         if (compile) {
             /* *** Index is on the stack (X) *** */
-            if (*type == TYPE_WORD) {
+            if ((*type & 0x0f) == TYPE_WORD) {
 		emitldi(1);
 		emit(VM_LSH);
 	    }
@@ -2529,10 +2536,8 @@ unsigned char getintvar(char *name,
 	    if (!address) {
                 if (local && compilingsub) {
                     if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-			    print("PASS BY REF\n");
 		        giv_ld_abs(*type);
 		    } else {
-			    print("REL\n");
 		        giv_ld_rel(*type);
 		    }
                 } else {
@@ -2552,7 +2557,7 @@ unsigned char getintvar(char *name,
                 return 1;
             }
 
-            if (*type == TYPE_WORD) {
+            if ((*type & 0x0f) == TYPE_WORD) {
                 if (address) {
                     *val = (int) ((int *) bodyptr + idx);
                 } else {
@@ -2587,10 +2592,6 @@ unsigned char getintvar(char *name,
  */
 void doif(unsigned char arg)
 {
-
-#ifdef __GNUC__
-//print("doif()\n");
-#endif
 
     /*
      * Place the following on the return stack when interpreting:
@@ -2640,11 +2641,6 @@ void doif(unsigned char arg)
  */
 unsigned char doelse()
 {
-
-#ifdef __GNUC__
-//print("doelse()\n");
-#endif
-
     if (return_stack[returnSP + 3] != IFFRAME) {
         error(ERR_NOIF);
         return RET_ERROR;
@@ -2686,11 +2682,6 @@ unsigned char doelse()
  */
 unsigned char doendif()
 {
-
-#ifdef __GNUC__
-//print("doendif()\n");
-#endif
-
     if (return_stack[returnSP + 3] != IFFRAME) {
         error(ERR_NOIF);
         return RET_ERROR;
@@ -2735,24 +2726,28 @@ unsigned char doendif()
 /*************************************************************************/
 
 /*
- * Routine handles four cases, each of which looks like variable assignment.
+ * Routine handles five cases, each of which looks like variable assignment.
  * Doing these all together here makes code easier to maintain and smaller.
  */
-#define WORD_MODE 0
-#define BYTE_MODE 1
-#define LET_MODE  2
-#define FOR_MODE  3
+#define WORD_MODE  0
+#define BYTE_MODE  1
+#define CONST_MODE 2
+#define LET_MODE   3
+#define FOR_MODE   4
 
 /*
  * Handles four cases, according to value of mode:
- *  - WORD_MODE - creation of word variable 
- *  - BYTE_MODE - creation of byte variable 
- *  - LET_MODE - assignment to existing variable
- *  - FOR_MODE - entry to for loop
+ *  - WORD_MODE  - declaration of word variable 
+ *  - BYTE_MODE  - declaration of byte variable 
+ *  - CONST_MODE - declaration of constant
+ *  - LET_MODE   - assignment to existing variable
+ *  - FOR_MODE   - entry to for loop
  *
- * Handles parsing the following text (mode != FOR_MODE):
+ * Handles parsing the following text (mode == WORD_MODE/BYTE_MODE) either:
  *     "var = expr"
- *     "var[expr1] = expr2"
+ * or, "var[expr1] = expr2"
+ * or (mode == CONST_MODE), just:
+ *     "var = expr"
  * or (mode == FOR_MODE):
  *     "var = expr2 : expr3"
  * or, "var[expr1] = expr2 : expr3"
@@ -2766,14 +2761,10 @@ unsigned char assignorcreate(unsigned char mode)
     unsigned char type;
     char name[VARNUMCHARS];
     int i = 0;
-    unsigned char numdims = 0;
+    unsigned char isarray = 0;
     unsigned char local = 0;
     unsigned char oldcompile = compile;
-
-#ifdef __GNUC__
-//print("assignorcreate()\n");
-#endif
-
+    
     if (!txtPtr || !isalphach(*txtPtr)) {
         error(ERR_VAR);
         return RET_ERROR;
@@ -2790,7 +2781,7 @@ unsigned char assignorcreate(unsigned char mode)
 
     i = 0;
     if (*txtPtr == '[') {
-        numdims = 1;
+        isarray = 1;
         switch (mode) {
         case WORD_MODE:
         case BYTE_MODE:
@@ -2819,31 +2810,39 @@ unsigned char assignorcreate(unsigned char mode)
 
     eatspace();
 
+    if (mode == CONST_MODE) {
+        compile = 0; /* Eval, not codegen */
+    }
+
     /*
      * If it is LET or FOR, evaluate the single argument.
      * If it is declaration, only evaluate single argument for scalars.
      * For arrays, the initializer is evaluated inside createintvar().
      */
-    if ((numdims == 0) || (mode == LET_MODE) || (mode == FOR_MODE)) {
+    if (!isarray || (mode == LET_MODE) || (mode == FOR_MODE)) {
         if (eval((mode != FOR_MODE), &j)) {
+	    compile = 1;
             return RET_ERROR;
         }
     }
+    compile = oldcompile;
+
     switch (mode) {
 
     case WORD_MODE:
     case BYTE_MODE:
+    case CONST_MODE:
         if (i == 0) {
             ++i;
         }
-        if (createintvar(name, ((mode == WORD_MODE) ? TYPE_WORD : TYPE_BYTE), numdims, i, j, 0)) {
+        if (createintvar(name, ((mode == CONST_MODE) ? TYPE_CONST : ((mode == WORD_MODE) ? TYPE_WORD : TYPE_BYTE)), isarray, i, j, 0)) {
             return RET_ERROR;
         }
         break;
 
     case LET_MODE:
     case FOR_MODE:
-	if (numdims == 0) {
+	if (!isarray) {
 	   i = -1;
 	}
         if (setintvar(name, i, j)) {
@@ -2892,25 +2891,16 @@ unsigned char assignorcreate(unsigned char mode)
         compiletimelookup = 1;
     }
     if (getintvar(name, i, &j, &type, 1)) {
-        compiletimelookup = 0;
         error(ERR_VAR);
         return RET_ERROR;
     }
-    compiletimelookup = 0;
 
-    if (type == TYPE_WORD) {
-        push_return(FORFRAME_W);
-    } else {
-        push_return(FORFRAME_B);
-    }
+    push_return(((type & 0x0f) == TYPE_WORD) ? FORFRAME_W : FORFRAME_B);
+
     if (compile) {
         /* Find out if it is a local or a global */
         findintvar(name, &local);
-        if (local && compilingsub) {
-            push_return(1);     // Use relative
-        } else {
-            push_return(0);     // Use absolute
-        }
+	push_return(local && compilingsub); /* 0: absolute, 1: relative addr */
         push_return(rtPC);      /* Store PC for compile case */
 	emit(VM_DUP);
 
@@ -2969,10 +2959,6 @@ unsigned char doendfor()
     int val;
     unsigned char type = 0xff;
 
-#ifdef __GNUC__
-//print("doendfor()\n");
-#endif
-
     if (return_stack[returnSP + 5] == FORFRAME_W) {
         type = TYPE_WORD;
         if (!compile) {
@@ -2992,35 +2978,19 @@ unsigned char doendfor()
     if (compile) {
         /* **** Loop limit is on the VM stack **** */
         emitldi(return_stack[returnSP + 2]);
-        if (type == TYPE_WORD) {
-            if (return_stack[returnSP + 4]) {
-                emit(VM_LDRWORD);
-            } else {
-                emit(VM_LDAWORD);
-            }
+        if (return_stack[returnSP + 4]) {
+            emit((type == TYPE_WORD) ? VM_LDRWORD : VM_LDRBYTE);
         } else {
-            if (return_stack[returnSP + 4]) {
-                emit(VM_LDRBYTE);
-            } else {
-                emit(VM_LDABYTE);
-            }
-        }
+            emit((type == TYPE_WORD) ? VM_LDAWORD : VM_LDABYTE);
+	}
         emit(VM_INC);
         emit(VM_DUP);
         emitldi(return_stack[returnSP + 2]);
-        if (type == TYPE_WORD) {
-            if (return_stack[returnSP + 4]) {
-                emit(VM_STRWORD);
-            } else {
-                emit(VM_STAWORD);
-            }
-        } else {
-            if (return_stack[returnSP + 4]) {
-                emit(VM_STRBYTE);
-            } else {
-                emit(VM_STABYTE);
-            }
-        }
+        if (return_stack[returnSP + 4]) {
+            emit((type == TYPE_WORD) ? VM_STRWORD : VM_STRBYTE);
+	} else {
+            emit((type == TYPE_WORD) ? VM_STAWORD : VM_STABYTE);
+	}
         emit(VM_GTE);
         emitldi(return_stack[returnSP + 3]);
         emit(VM_BRNCH);
@@ -3071,10 +3041,6 @@ unsigned char doendfor()
 void dowhile(char *startTxtPtr, unsigned char arg)
 {
 
-#ifdef __GNUC__
-//print("dowhile()\n");
-#endif
-
     /*
      * Place the following on the return stack when interpreting:
      *   - Magic value WHILEFRAME to indicate WHILE loop stack frame
@@ -3124,10 +3090,6 @@ void dowhile(char *startTxtPtr, unsigned char arg)
  */
 unsigned char doendwhile()
 {
-
-#ifdef __GNUC__
-//print("doendwhile()\n");
-#endif
 
     if (return_stack[returnSP + 4] != WHILEFRAME) {
         error(ERR_NOWHILE);
@@ -3306,9 +3268,9 @@ unsigned char dosubr()
              * mode.
              */
             arraymode = 0;
-            if (txtPtr && (*txtPtr == '[')) {
+            if (*txtPtr == '[') {
                 ++txtPtr;
-                if (txtPtr && (*txtPtr == ']')) {
+                if (*txtPtr == ']') {
                     ++txtPtr;
                     arraymode = 1;
                 } else {
@@ -3344,7 +3306,7 @@ unsigned char dosubr()
 
             *(int *) ((unsigned char *) v + sizeof(var_t)) = 4; // Skip over return address and frame pointer
             strncpy(v->name, name, VARNUMCHARS);
-            v->type = ((arraymode & 0x0f) << 4) | type;
+            v->type = (arraymode << 4) | type;
             v->next = NULL;
 
 	    if (arraymode) {
@@ -3865,39 +3827,40 @@ unsigned char parsehexint(int *val)
 #define TOK_VARS     162        /* vars          */
 #define TOK_WORD     163        /* word          */
 #define TOK_BYTE     164        /* byte          */
-#define TOK_RUN      165        /* run           */
-#define TOK_COMPILE  166        /* comp          */
-#define TOK_NEW      167        /* new           */
-#define TOK_SUBR     168        /* sub           */
-#define TOK_ENDSUBR  169        /* endsub        */
-#define TOK_IF       170        /* if            */
-#define TOK_ELSE     171        /* else          */
-#define TOK_ENDIF    172        /* endif         */
-#define TOK_FREE     173        /* free          */
-#define TOK_CALL     174        /* call sub      */
-#define TOK_RET      175        /* return        */
-#define TOK_FOR      176        /* for           */
-#define TOK_ENDFOR   177        /* endfor        */
-#define TOK_WHILE    178        /* while         */
-#define TOK_ENDW     179        /* endwhile      */
-#define TOK_END      180        /* end           */
-#define TOK_MODE     181        /* mode          */
+#define TOK_CONST    165        /* byte          */
+#define TOK_RUN      166        /* run           */
+#define TOK_COMPILE  167        /* comp          */
+#define TOK_NEW      168        /* new           */
+#define TOK_SUBR     169        /* sub           */
+#define TOK_ENDSUBR  170        /* endsub        */
+#define TOK_IF       171        /* if            */
+#define TOK_ELSE     172        /* else          */
+#define TOK_ENDIF    173        /* endif         */
+#define TOK_FREE     174        /* free          */
+#define TOK_CALL     175        /* call sub      */
+#define TOK_RET      176        /* return        */
+#define TOK_FOR      177        /* for           */
+#define TOK_ENDFOR   178        /* endfor        */
+#define TOK_WHILE    179        /* while         */
+#define TOK_ENDW     180        /* endwhile      */
+#define TOK_END      181        /* end           */
+#define TOK_MODE     182        /* mode          */
 
 /*
  * All the following tokens do not require trailing whitespace
  * Careful - the ordering matters!
  */
-#define TOK_POKEWORD 182        /* poke word (*) */
-#define TOK_POKEBYTE 183        /* poke byte (^) */
+#define TOK_POKEWORD 183        /* poke word (*) */
+#define TOK_POKEBYTE 184        /* poke byte (^) */
 
 /* Line editor commands */
-#define TOK_LOAD    184         /* Editor: load        */
-#define TOK_SAVE    185         /* Editor: save        */
-#define TOK_LIST    186         /* Editor: list        */
-#define TOK_CHANGE  187         /* Editor: modify line */
-#define TOK_APP     188         /* Editor: append line */
-#define TOK_INS     189         /* Editor: insert line */
-#define TOK_DEL     190         /* Editor: delete line */
+#define TOK_LOAD    185         /* Editor: load        */
+#define TOK_SAVE    186         /* Editor: save        */
+#define TOK_LIST    187         /* Editor: list        */
+#define TOK_CHANGE  188         /* Editor: modify line */
+#define TOK_APP     189         /* Editor: append line */
+#define TOK_INS     190         /* Editor: insert line */
+#define TOK_DEL     191         /* Editor: delete line */
 
 /*
  * Used for the stmnttabent type field.  Code in parseline() uses this
@@ -3939,7 +3902,7 @@ struct stmnttabent {
 /*
  * Number of statements - must be updated to match the table
  */
-#define NUMSTMNTS 41
+#define NUMSTMNTS 42
 
 /*
  * Statement table
@@ -3967,34 +3930,35 @@ struct stmnttabent stmnttab[] = {
     {"vars", TOK_VARS, NOARGS},            /* 13 */
     {"word", TOK_WORD, CUSTOM},            /* 14 */
     {"byte", TOK_BYTE, CUSTOM},            /* 15 */
-    {"run", TOK_RUN, NOARGS},              /* 16 */
-    {"comp", TOK_COMPILE, NOARGS},         /* 17 */
-    {"new", TOK_NEW, NOARGS},              /* 18 */
-    {"sub", TOK_SUBR, INITIALNAMEARG},     /* 19 */
-    {"endsub", TOK_ENDSUBR, NOARGS},       /* 20 */
-    {"if", TOK_IF, ONEARG},                /* 21 */
-    {"else", TOK_ELSE, NOARGS},            /* 22 */
-    {"endif", TOK_ENDIF, NOARGS},          /* 23 */
-    {"free", TOK_FREE, NOARGS},            /* 24 */
-    {"call", TOK_CALL, INITIALNAMEARG},    /* 25 */
-    {"return", TOK_RET, ONEARG},           /* 26 */
-    {"for", TOK_FOR, CUSTOM},              /* 27 */
-    {"endfor", TOK_ENDFOR, NOARGS},        /* 28 */
-    {"while", TOK_WHILE, ONEARG},          /* 29 */
-    {"endwhile", TOK_ENDW, NOARGS},        /* 30 */
-    {"end", TOK_END, NOARGS},              /* 31 */
-    {"mode", TOK_MODE, ONEARG},            /* 32 */
-    {"*", TOK_POKEWORD, INITIALARG},       /* 33 */
-    {"^", TOK_POKEBYTE, INITIALARG},       /* 34 */
+    {"const", TOK_CONST, CUSTOM},          /* 16 */
+    {"run", TOK_RUN, NOARGS},              /* 17 */
+    {"comp", TOK_COMPILE, NOARGS},         /* 18 */
+    {"new", TOK_NEW, NOARGS},              /* 19 */
+    {"sub", TOK_SUBR, INITIALNAMEARG},     /* 20 */
+    {"endsub", TOK_ENDSUBR, NOARGS},       /* 21 */
+    {"if", TOK_IF, ONEARG},                /* 22 */
+    {"else", TOK_ELSE, NOARGS},            /* 23 */
+    {"endif", TOK_ENDIF, NOARGS},          /* 24 */
+    {"free", TOK_FREE, NOARGS},            /* 25 */
+    {"call", TOK_CALL, INITIALNAMEARG},    /* 26 */
+    {"return", TOK_RET, ONEARG},           /* 27 */
+    {"for", TOK_FOR, CUSTOM},              /* 28 */
+    {"endfor", TOK_ENDFOR, NOARGS},        /* 29 */
+    {"while", TOK_WHILE, ONEARG},          /* 30 */
+    {"endwhile", TOK_ENDW, NOARGS},        /* 31 */
+    {"end", TOK_END, NOARGS},              /* 32 */
+    {"mode", TOK_MODE, ONEARG},            /* 33 */
+    {"*", TOK_POKEWORD, INITIALARG},       /* 34 */
+    {"^", TOK_POKEBYTE, INITIALARG},       /* 35 */
 
     /* Editor commands */
-    {":r", TOK_LOAD, ONESTRARG},           /* 35 */
-    {":w", TOK_SAVE, ONESTRARG},           /* 36 */
-    {":l", TOK_LIST, CUSTOM},              /* 37 */
-    {":c", TOK_CHANGE, INITIALARG},        /* 38 */
-    {":a", TOK_APP, ONEARG},               /* 39 */
-    {":i", TOK_INS, ONEARG},               /* 40 */
-    {":d", TOK_DEL, INITIALARG}            /* 41 */
+    {":r", TOK_LOAD, ONESTRARG},           /* 36 */
+    {":w", TOK_SAVE, ONESTRARG},           /* 37 */
+    {":l", TOK_LIST, CUSTOM},              /* 38 */
+    {":c", TOK_CHANGE, INITIALARG},        /* 39 */
+    {":a", TOK_APP, ONEARG},               /* 40 */
+    {":i", TOK_INS, ONEARG},               /* 41 */
+    {":d", TOK_DEL, INITIALARG}            /* 42 - set NUMSTMNTS to this value */
 };
 
 /*
@@ -4369,6 +4333,11 @@ unsigned char parseline()
             break;
         case TOK_BYTE:
             if (assignorcreate(BYTE_MODE)) {
+                return 2;
+            }
+            break;
+        case TOK_CONST:
+            if (assignorcreate(CONST_MODE)) {
                 return 2;
             }
             break;
@@ -4976,11 +4945,6 @@ void
 #endif
 main()
 {
-
-//      /* Check for the existence of RAM at 0xa000 and add it to heap */
-//      if (PEEK(0xa000) == POKE(0xa000, PEEK(0xa000)+1)) {
-//              _heapadd ((void *) 0xa000, 0x2000);
-//      }
 
 #ifdef A2E
     clrscr();

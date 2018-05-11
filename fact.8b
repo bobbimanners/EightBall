@@ -2,7 +2,7 @@
 ' Recursive factorial function test
 '
 
-pr.dec fact(3); pr.nl
+pr.dec fact(5); pr.nl
 end
 
 sub fact(word val)

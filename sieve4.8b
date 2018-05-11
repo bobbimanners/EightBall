@@ -2,12 +2,14 @@
 
 pr.msg "Sieve of Eratosthenes ..."
 
-byte A[30*30] = {}
+const sz=30
+const arrsz=sz*sz
+byte A[sz*sz] = {}
 word i = 0
-for i = 0 : 30*30-1
+for i = 0 : sz*sz-1
   A[i] = 1
 endfor
-call doall(30, A)
+call doall(sz, A)
 end
 
 sub doall(word nr, byte array[])
