@@ -86,8 +86,8 @@
 //#define EXIT(arg) {printf("%d\n",__LINE__); exit(arg);}
 #define EXIT(arg) exit(arg)
 
-#define VARNUMCHARS 4  /* First 4 chars of variable name are significant */
-#define SUBRNUMCHARS 8 /* First 8 chars of variable name are significant */
+#define VARNUMCHARS 4           /* First 4 chars of variable name are significant */
+#define SUBRNUMCHARS 8          /* First 8 chars of variable name are significant */
 
 /*
  ***************************************************************************
@@ -131,8 +131,7 @@ unsigned char E(void);
 unsigned char eval(unsigned char checkNoMore, int *val);
 unsigned char parseint(int *);
 unsigned char parsehexint(int *);
-unsigned char getintvar(char *, int, int *, unsigned char *,
-                        unsigned char);
+unsigned char getintvar(char *, int, int *, unsigned char *, unsigned char);
 unsigned char openfile(unsigned char);
 unsigned char readfile(void);
 unsigned char writefile(void);
@@ -305,7 +304,10 @@ const char unaryops[] = "-+!~*^";
  */
 #define ILLEGAL     100
 
-#define ERR_SYNTAX  100         /* Syntax             */
+/*
+ * Error codes
+ */
+#define ERR_FIRST   101         /* FIRST ERROR NUM    */
 #define ERR_NOIF    101         /* No IF              */
 #define ERR_NOFOR   102         /* No FOR             */
 #define ERR_NOWHILE 103         /* No WHILE           */
@@ -330,8 +332,37 @@ const char unaryops[] = "-+!~*^";
 #define ERR_VALUE   122         /* Bad value          */
 #define ERR_CONST   123         /* Const value reqd   */
 #define ERR_STCONST 124         /* Const value reqd   */
-#define ERR_TOOLONG 125         /* Initializer too lng*/
+#define ERR_TOOLONG 125         /* Initializer too lng */
 #define ERR_LINK    126         /* Linkage error      */
+
+char *errmsgs[] = {
+    "no if",                    /* ERR_NOIF    */
+    "no for",                   /* ERR_NOFOR   */
+    "no while",                 /* ERR_NOWHILE */
+    "no sub",                   /* ERR_NOSUB   */
+    "stack",                    /* ERR_STACK   */
+    "complex",                  /* ERR_COMPLEX */
+    "expect var",               /* ERR_VAR     */
+    "redef",                    /* ERR_REDEF   */
+    "expected ",                /* ERR_EXPECT  */
+    "extra",                    /* ERR_EXTRA   */
+    "bad dim",                  /* ERR_DIM     */
+    "bad idx",                  /* ERR_SUBSCR  */
+    "ran into sub",             /* ERR_RUNSUB  */
+    "bad str",                  /* ERR_STR     */
+    "file",                     /* ERR_FILE    */
+    "bad line#",                /* ERR_LINE    */
+    "bad expr",                 /* ERR_EXPR    */
+    "bad num",                  /* ERR_NUM     */
+    "arg",                      /* ERR_ARG     */
+    "type",                     /* ERR_TYPE    */
+    "div/0",                    /* ERR_DIVZERO */
+    "bad val",                  /* ERR_VALUE   */
+    "not const",                /* ERR_CONST   */
+    "const",                    /* ERR_STCONST */
+    "too long",                 /* ERR_TOOLONG */
+    "link"                      /* ERR_LINK    */
+};
 
 /*
  * Error reporting
@@ -339,96 +370,13 @@ const char unaryops[] = "-+!~*^";
 void error(unsigned char errcode)
 {
     printchar('?');
-    switch (errcode) {
-    case ERR_SYNTAX:
-        print("syntax");
-        break;
-    case ERR_NOIF:
-        print("no if");
-        break;
-    case ERR_NOFOR:
-        print("no for");
-        break;
-    case ERR_NOWHILE:
-        print("no while");
-        break;
-    case ERR_NOSUB:
-        print("no sub");
-        break;
-    case ERR_STACK:
-        print("stack");
-        break;
-    case ERR_COMPLEX:
-        print("expr too complex");
-        break;
-    case ERR_VAR:
-        print("var name expected");
-        break;
-    case ERR_REDEF:
-        print("var redef");
-        break;
-    case ERR_EXPECT:
-        print("expected ");
-        break;
-    case ERR_EXTRA:
-        print("unexpected extra");
-        break;
-    case ERR_DIM:
-        print("bad dimn");
-        break;
-    case ERR_SUBSCR:
-        print("bad idx");
-        break;
-    case ERR_RUNSUB:
-        print("ran into sub");
-        break;
-    case ERR_STR:
-        print("bad str");
-        break;
-    case ERR_FILE:
-        print("file");
-        break;
-    case ERR_LINE:
-        print("bad line num");
-        break;
-    case ERR_EXPR:
-        print("bad expr");
-        break;
-    case ERR_NUM:
-        print("bad num");
-        break;
-    case ERR_ARG:
-        print("arg");
-        break;
-    case ERR_TYPE:
-        print("type");
-        break;
-    case ERR_DIVZERO:
-        print("div/0");
-        break;
-    case ERR_VALUE:
-	print("bad val");
-	break;
-    case ERR_CONST:
-	print("not const");
-	break;
-    case ERR_STCONST:
-	print("const");
-	break;
-    case ERR_TOOLONG:
-        print("too long");
-        break;
-    case ERR_LINK:
-	print("link");
-	break;
-    default:
-        print("?");
-    }
+    print(errmsgs[errcode - ERR_FIRST]);
 }
 
 /*
  * Based on C's precedence rules.  Higher return value means higher precedence.
  * Ref: http://en.cppreference.com/w/c/language/operator_precedence
+ * TODO: Code will probably be smaller if we use a table.
  */
 unsigned char getprecedence(int token)
 {
@@ -470,7 +418,7 @@ unsigned char getprecedence(int token)
     case TOK_OR:
         return 1;
     case SENTINEL:
-        return 0;               /* Must be lowest precedence! */
+        return 0;  /* Must be lowest precedence! */
     default:
         /* Should never happen */
         EXIT(99);
@@ -560,9 +508,9 @@ unsigned char binary()
     unsigned char tok;
     unsigned char idx = 0;
 
-/*
- * First two char ops (don't try if first char is NULL though!)
- */
+    /*
+     * First two char ops (don't try if first char is NULL though!)
+     */
 
     if (*txtPtr) {
         tok = TOK_EQL;
@@ -577,9 +525,9 @@ unsigned char binary()
         }
     }
 
-/*
- * Now single char ops
- */
+    /*
+     * Now single char ops
+     */
     idx = 0;
     tok = TOK_POW;
     while (binaryops[idx]) {
@@ -845,7 +793,7 @@ unsigned char pop_operator()
  */
 unsigned char push_operator(int operator_token)
 {
-/* Handles operator precedence here */
+    /* Handles operator precedence here */
     while (getprecedence(top_operator_stack()) >=
            getprecedence(operator_token)) {
 
@@ -869,9 +817,6 @@ unsigned char push_operator(int operator_token)
  */
 void push_return(int linenum)
 {
-#ifdef __GNUC__
-//printf("push_return(%d) SP=%d before\n", linenum, returnSP);
-#endif
     return_stack[returnSP] = linenum;
     if (!returnSP) {
         error(ERR_STACK);
@@ -890,9 +835,6 @@ int pop_return()
         longjmp(jumpbuf, 1);
     }
     ++returnSP;
-#ifdef __GNUC__
-//printf("pop_return() ->%d\n", return_stack[returnSP]);
-#endif
     return return_stack[returnSP];
 }
 
@@ -902,7 +844,7 @@ int pop_return()
  */
 #define eatspace() \
 while (*txtPtr == ' ') { \
-	++txtPtr; \
+    ++txtPtr; \
 }
 
 /*
@@ -976,7 +918,7 @@ unsigned char subscript(int *idx)
         return 1;
     }
 
-/* Throw away SENTINEL */
+    /* Throw away SENTINEL */
     pop_operator_stack();
 
     return 0;
@@ -1001,7 +943,7 @@ unsigned char P()
     eatspace();
 
     if (!(*txtPtr)) {
-        error(ERR_SYNTAX);      /* This may not really be correct error? */
+        error(ERR_EXPR);
         return 1;
     }
 
@@ -1033,9 +975,9 @@ unsigned char P()
             ++txtPtr;
             ++writePtr;
         }
-	if (arg < VARNUMCHARS) {
+        if (arg < VARNUMCHARS) {
             key[arg] = '\0';
-	}
+        }
         *writePtr = '\0';
 
         idx = -1;
@@ -1048,14 +990,14 @@ unsigned char P()
 
         } else if (*txtPtr == '(') {
 
-	    /*
-	     * Function invokation
-	     */
+            /*
+             * Function invokation
+             */
 
-	    if (onlyconstants) {
-		error(ERR_CONST);
-		return 1;
-	    }
+            if (onlyconstants) {
+                error(ERR_CONST);
+                return 1;
+            }
 
             /* No taking address of functions thank you! */
             if (addressmode) {
@@ -1063,13 +1005,15 @@ unsigned char P()
                 return 1;
             }
 
-	    if (compile) {
+            if (compile) {
                 push_operator_stack(SENTINEL);
-	        if (docall()) {
-		    return 1;
-	        }
+                if (docall()) {
+                    return 1;
+                }
+
                 pop_operator_stack();
-	    } else {
+
+            } else {
 
                 push_operator_stack(SENTINEL);
 
@@ -1086,7 +1030,7 @@ unsigned char P()
                  * statement in the sub being called.
                  */
                 push_return(CALLFRAME);
-                push_return(-2);    /* Magic number for function */
+                push_return(-2);        /* Magic number for function */
                 push_return(-1);
 
                 /*
@@ -1120,30 +1064,30 @@ unsigned char P()
                 push_operand_stack(retregister);
             }
             goto skip_var;      // MESSY!!
-	}
+        }
 
-	if (compile) {
-	    compiletimelookup = 1;
+        if (compile) {
+            compiletimelookup = 1;
             if (getintvar(key, idx, &arg, &type, addressmode)) {
                 error(ERR_VAR);
                 return 1;
             }
 
-	    if (type & 0x20) {
-		push_operand_stack(arg);
-		goto skip_var;
-	    }
-	}
+            if (type & 0x20) {
+                push_operand_stack(arg);
+                goto skip_var;
+            }
+        }
 
         if (getintvar(key, idx, &arg, &type, addressmode)) {
-	    error(ERR_VAR);
-	    return 1;
-	}
+            error(ERR_VAR);
+            return 1;
+        }
 
-	/* If onlyconstants is set then only allow const variables */
+        /* If onlyconstants is set then only allow const variables */
         if (onlyconstants && !(type & 0x20)) {
-	    error(ERR_CONST);
-	    return 1;
+            error(ERR_CONST);
+            return 1;
         }
 
         if (!compile) {
@@ -1177,17 +1121,17 @@ unsigned char P()
         eatspace();
 
     } else if (*txtPtr == '\'') {
-	/*
-	 * Handle character constants
-	 */
-	++txtPtr;               /* Eat the ' */
-	arg = *txtPtr;
-	++txtPtr;
-	if (*txtPtr != '\'') {
+        /*
+         * Handle character constants
+         */
+        ++txtPtr;               /* Eat the ' */
+        arg = *txtPtr;
+        ++txtPtr;
+        if (*txtPtr != '\'') {
             error(ERR_NUM);
             return 1;
-	}
-	++txtPtr;               /* Eat the ' */
+        }
+        ++txtPtr;               /* Eat the ' */
         push_operand_stack(arg);
         eatspace();
 
@@ -1291,7 +1235,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)0x97ff
-#define HEAP2LIM (char*)0x8b00 
+#define HEAP2LIM (char*)0x8a00
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
@@ -1308,11 +1252,11 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
  *   Heap 1: Variables
  *   Heap 2: Program text
  */
-#define HEAP1TOP (char*)0xbfff /* Leaves 2K for stack, and 2K for ??? */
+#define HEAP1TOP (char*)0xbfff  /* Leaves 2K for stack, and 2K for ??? */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
-#define HEAP2LIM (char*)0x7200
+#define HEAP2LIM (char*)0x7100
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
@@ -1574,10 +1518,10 @@ void emitprmsg(void)
     printchar('"');
     while (*p) {
         *codeptr = *p;
-	++rtPC;
-	printchar(*p);
-	++codeptr;
-	++p;
+        ++rtPC;
+        printchar(*p);
+        ++codeptr;
+        ++p;
     }
     *codeptr = 0;
     ++codeptr;
@@ -1592,7 +1536,8 @@ void emitprmsg(void)
  */
 void emit_fixup(int address, int word)
 {
-    unsigned char *ptr = (unsigned char *)(CODESTART + address - RTPCSTART);
+    unsigned char *ptr =
+        (unsigned char *) (CODESTART + address - RTPCSTART);
     unsigned char *p = (unsigned char *) &word;
 
     *ptr = *p;
@@ -1619,8 +1564,6 @@ void writebytecode()
     openfile(1);
     print("...\n");
     while (p < end) {
-        //printhexbyte(*p);
-        //print("\n");
 #ifdef CBM
         cbm_write(1, p, 1);
 #else
@@ -1809,17 +1752,17 @@ var_t *varslocal;               /* Local stack frame */
  * addr: address of entry point in compiled code.
  */
 struct subtabent {
-	char name[SUBRNUMCHARS];
-	unsigned int addr;
-	struct subtabent *next;
+    char name[SUBRNUMCHARS];
+    unsigned int addr;
+    struct subtabent *next;
 };
 
 typedef struct subtabent sub_t;
 
-sub_t *subsbegin;  /* Entry points of compiled subroutines - first */
-sub_t *subsend;    /* Entry points of compiled subroutines - last  */
-sub_t *callsbegin; /* Subroutine calls - first */
-sub_t *callsend;   /* Subroutine calls - end */
+sub_t *subsbegin;               /* Entry points of compiled subroutines - first */
+sub_t *subsend;                 /* Entry points of compiled subroutines - last  */
+sub_t *callsbegin;              /* Subroutine calls - first */
+sub_t *callsend;                /* Subroutine calls - end */
 
 #define getptrtoscalarword(v) (int*)((char*)v + sizeof(var_t))
 #define getptrtoscalarbyte(v) (unsigned char*)((char*)v + sizeof(var_t))
@@ -1874,9 +1817,9 @@ void clearvars()
 }
 
 enum types {
-    TYPE_CONST,        /* Stored as TYPE_WORD     */
-    TYPE_WORD,         /* Word variable - 16 bits */
-    TYPE_BYTE          /* Byte variable - 8 bits  */
+    TYPE_CONST,                 /* Stored as TYPE_WORD     */
+    TYPE_WORD,                  /* Word variable - 16 bits */
+    TYPE_BYTE                   /* Byte variable - 8 bits  */
 };
 
 /*
@@ -1898,7 +1841,7 @@ void printvars()
             printchar(']');
         }
         printchar(' ');
-	printchar(((v->type & 0x0f) == TYPE_WORD) ? 'w' : 'b');
+        printchar(((v->type & 0x0f) == TYPE_WORD) ? 'w' : 'b');
         printchar((v->type & 0x20) ? 'c' : ' ');
         printchar(' ');
         if ((v->type & 0x10) == 0) {
@@ -1916,7 +1859,8 @@ void printvars()
 /* Factored out to save a few bytes
  * Used by createintvar() only.
  */
-void civ_st_rel_word(unsigned int i) {
+void civ_st_rel_word(unsigned int i)
+{
     emitldi(rtSP - rtFP + 2 * i);
     emit(VM_STRWORD);
 }
@@ -1924,7 +1868,8 @@ void civ_st_rel_word(unsigned int i) {
 /* Factored out to save a few bytes
  * Used by createintvar() only.
  */
-void civ_st_rel_byte(unsigned int i) {
+void civ_st_rel_byte(unsigned int i)
+{
     emitldi(rtSP - rtFP + i);
     emit(VM_STRBYTE);
 }
@@ -1959,11 +1904,11 @@ unsigned char createintvar(char *name,
     int i;
     int val;
     var_t *v;
-    unsigned char arrinitmode; /* STRG_INIT means string initializer, LIST_INIT means list initializer */
+    unsigned char arrinitmode;  /* STRG_INIT means string initializer, LIST_INIT means list initializer */
     unsigned char local = 1;
     unsigned char isconst = 0;
 
-    v = findintvar(name, &local); /* local = 1, so only search local scope */
+    v = findintvar(name, &local);       /* local = 1, so only search local scope */
 
     if (v) {
         error(ERR_REDEF);
@@ -1977,7 +1922,7 @@ unsigned char createintvar(char *name,
 
     if (type == TYPE_CONST) {
         isconst = 1;
-	type = TYPE_WORD;
+        type = TYPE_WORD;
     }
 
     if (!isarray) {
@@ -1993,15 +1938,15 @@ unsigned char createintvar(char *name,
              * for globals it is an ABSOLUTE address.
              */
             v = alloc1(sizeof(var_t) + sizeof(int));
-	    if (isconst) {
-		/* Store value of const.  No code generation. */
+            if (isconst) {
+                /* Store value of const.  No code generation. */
                 *getptrtoscalarword(v) = value;
-	    } else if (type == TYPE_WORD) {
-		/* Relative if compiling sub, absolute otherwise */
+            } else if (type == TYPE_WORD) {
+                /* Relative if compiling sub, absolute otherwise */
                 *getptrtoscalarword(v) = (compilingsub ? (rt_push_callstack(2) - rtFP) : (rt_push_callstack(2) + 1));
                 emit(VM_PSHWORD);
             } else {
-		/* Relative if compiling sub, absolute otherwise */
+                /* Relative if compiling sub, absolute otherwise */
                 *getptrtoscalarword(v) = (compilingsub ? (rt_push_callstack(1) - rtFP) : (rt_push_callstack(1) + 1));
                 emit(VM_PSHBYTE);
             }
@@ -2017,7 +1962,7 @@ unsigned char createintvar(char *name,
     } else {
         /*
          * Array variables.
-	 *
+         *
          * Here we allocate two words of space as follows:
          *  WORD1: Pointer to payload
          *  WORD2: to record the single dimensions of the 1D array.
@@ -2034,162 +1979,157 @@ unsigned char createintvar(char *name,
 
         } else {
             /*
-	     * For arrays we parse the initializer here.
-	     */
+             * For arrays we parse the initializer here.
+             */
             if (isarray) {
                 if (*txtPtr == '"') {
-		    arrinitmode = STRG_INIT;
-		    ++txtPtr;
+                    arrinitmode = STRG_INIT;
+                    ++txtPtr;
 #ifdef CBM
                 } else if (*txtPtr == '[') {
 #else
                 } else if (*txtPtr == '{') {
 #endif
-		    arrinitmode = LIST_INIT;
-		    ++txtPtr;
-	        }
+                    arrinitmode = LIST_INIT;
+                    ++txtPtr;
+                }
             }
 
             if (compile) {
 
                 v = alloc1(sizeof(var_t) + 2 * sizeof(int));
                 if (type == TYPE_WORD) {
-                    if (compilingsub) {
-                        bodyptr = rt_push_callstack(sz * 2) - rtFP;     /* Rel Frame Ptr */
-                    } else {
-                        bodyptr = rt_push_callstack(sz * 2) + 1;    /* Absolute */
-                    }
+                    /* Relative if compiling sub, absolute otherwise */
+                    bodyptr = (compilingsub ? (rt_push_callstack(sz * 2) - rtFP) : (rt_push_callstack(sz * 2) + 1));
                 } else {
-                    if (compilingsub) {
-                        bodyptr = rt_push_callstack(sz) - rtFP; /* Rel Frame Ptr */
-                    } else {
-                        bodyptr = rt_push_callstack(sz) + 1;        /* Absolute */
-                    }
+                    /* Relative if compiling sub, absolute otherwise */
+                    bodyptr = (compilingsub ? (rt_push_callstack(sz) - rtFP) : (rt_push_callstack(sz) + 1));
                 }
 
                 /*
                  * The following generates code to allocate the array
-		 * TODO: This is not very efficient. Need a VM instruction to allocate a block.
+                 * TODO: This is not very efficient. Need a VM instruction to allocate a block.
                  */
                 emitldi(sz);
                 emit(VM_DEC);
                 emit(VM_DUP);
-		emitldi(0); /* Value to fill with */
-		emit((type == TYPE_WORD) ? VM_PSHWORD : VM_PSHBYTE);
+                emitldi(0);     /* Value to fill with */
+                emit((type == TYPE_WORD) ? VM_PSHWORD : VM_PSHBYTE);
                 emitldi(0);
                 emit(VM_NEQL);
                 emitldi(rtPC - 10);
                 emit(VM_BRNCH);
-		emit(VM_DROP);
+                emit(VM_DROP);
 
                 /*
-		 * Initialize array
-		 * arrinitmode STRG_INIT is for string initializer "like this"
-		 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
-		 */
-		if (arrinitmode == STRG_INIT) {
-		  --sz; /* Hack to leave space for final null */
-		}
+                 * Initialize array
+                 * arrinitmode STRG_INIT is for string initializer "like this"
+                 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
+                 */
+                if (arrinitmode == STRG_INIT) {
+                    --sz;       /* Hack to leave space for final null */
+                }
                 for (i = 0; i < sz; ++i) {
-		    if (arrinitmode == STRG_INIT) {
-			emitldi((*txtPtr == '"') ? 0 : *txtPtr);
-                        ((type == TYPE_WORD) ? civ_st_rel_word(i) : civ_st_rel_byte(i));
-			if (*txtPtr == '"') {
-			    break;
-			}
-		        ++txtPtr;
-		    } else {
+                    if (arrinitmode == STRG_INIT) {
+                        emitldi((*txtPtr == '"') ? 0 : *txtPtr);
+                        ((type ==
+                          TYPE_WORD) ? civ_st_rel_word(i) :
+                         civ_st_rel_byte(i));
+                        if (*txtPtr == '"') {
+                            break;
+                        }
+                        ++txtPtr;
+                    } else {
 #ifdef CBM
-		        if (*txtPtr == ']')
+                        if (*txtPtr == ']')
 #else
-		        if (*txtPtr == '}')
+                        if (*txtPtr == '}')
 #endif
-			{
-			    break;
-			}
+                        {
+                            break;
+                        }
                         if (eval(0, &val)) {
                             return 1;
                         }
                         ((type == TYPE_WORD) ? civ_st_rel_word(i) : civ_st_rel_byte(i));
-			eatspace();
-			if (*txtPtr == ',') {
-			    ++txtPtr;
-			}
-			eatspace();
-		    }
-		}
+                        eatspace();
+                        if (*txtPtr == ',') {
+                            ++txtPtr;
+                        }
+                        eatspace();
+                    }
+                }
             } else {
                 if (type == TYPE_WORD) {
                     v = alloc1(sizeof(var_t) + (sz + 2) * sizeof(int));
-                    bodyptr = (int) ((unsigned char *) v + sizeof(var_t) + 2 * sizeof(int));
-		} else {
+                } else {
                     v = alloc1(sizeof(var_t) + 2 * sizeof(int) + sz * sizeof(unsigned char));
-                    bodyptr = (int) ((unsigned char *) v + sizeof(var_t) + 2 * sizeof(int));
-		}
+                }
+                bodyptr = (int) ((unsigned char *) v + sizeof(var_t) + 2 * sizeof(int));
 
                 /*
-		 * Initialize array
-		 * arrinitmode STRG_INIT is for string initializer "like this"
-		 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
-		 */
-		if (arrinitmode == STRG_INIT) {
-		  --sz; /* Hack to leave space for final null */
-		}
+                 * Initialize array
+                 * arrinitmode STRG_INIT is for string initializer "like this"
+                 * arrinitmode LIST_INIT is for list initializer {123, 456, 789 ...}
+                 */
+                if (arrinitmode == STRG_INIT) {
+                    --sz;       /* Hack to leave space for final null */
+                }
                 for (i = 0; i < sz; ++i) {
-		    if (arrinitmode == STRG_INIT) {
-		        if (*txtPtr == '"') {
-			    val = 0;
-			} else {
-			    val = *txtPtr;
-			    ++txtPtr;
-			}
+                    if (arrinitmode == STRG_INIT) {
+                        if (*txtPtr == '"') {
+                            val = 0;
+                        } else {
+                            val = *txtPtr;
+                            ++txtPtr;
+                        }
                     } else {
 #ifdef CBM
-		        if (*txtPtr == ']')
+                        if (*txtPtr == ']')
 #else
-		        if (*txtPtr == '}')
+                        if (*txtPtr == '}')
 #endif
-			{
-			    val =0;
-			} else {
+                        {
+                            val = 0;
+                        } else {
                             if (eval(0, &val)) {
                                 return 1;
                             }
-			    eatspace();
-			    if (*txtPtr == ',') {
-			        ++txtPtr;
-			    }
-			    eatspace();
-			}
-		    }
-		    if (type == TYPE_WORD) {
+                            eatspace();
+                            if (*txtPtr == ',') {
+                                ++txtPtr;
+                            }
+                            eatspace();
+                        }
+                    }
+                    if (type == TYPE_WORD) {
                         *((int *) bodyptr + i) = val;
-		    } else {
+                    } else {
                         *((unsigned char *) bodyptr + i) = val;
-		    }
-		}
+                    }
+                }
             }
-	    if (arrinitmode == STRG_INIT) {
-	        ++sz; /* Reverse the hack we perpetuated above */
-		if (*txtPtr == '"') {
-		    ++txtPtr;
-	        } else {
-		    error(ERR_TOOLONG);
-		    return 1;
-	        }
-	    } else {
+            if (arrinitmode == STRG_INIT) {
+                ++sz;           /* Reverse the hack we perpetuated above */
+                if (*txtPtr == '"') {
+                    ++txtPtr;
+                } else {
+                    error(ERR_TOOLONG);
+                    return 1;
+                }
+            } else {
 #ifdef CBM
-	        if (*txtPtr == ']')
+                if (*txtPtr == ']')
 #else
-		if (*txtPtr == '}')
+                if (*txtPtr == '}')
 #endif
-	        {
-	            ++txtPtr;
-		} else {
-		   error(ERR_TOOLONG);
-		   return 1;
-		}
-	    }
+                {
+                    ++txtPtr;
+                } else {
+                    error(ERR_TOOLONG);
+                    return 1;
+                }
+            }
         }
 
         /* Store pointer to payload */
@@ -2273,14 +2213,16 @@ void vars_deletecallframe()
 /* Factored out to save a few bytes
  * Used by setintvar() only.
  */
-void siv_st_abs(unsigned char type) {
+void siv_st_abs(unsigned char type)
+{
     ((type == TYPE_WORD) ? emit(VM_STAWORD) : emit(VM_STABYTE));
 }
 
 /* Factored out to save a few bytes
  * Used by setintvar() only.
  */
-void siv_st_rel(unsigned char type) {
+void siv_st_rel(unsigned char type)
+{
     ((type == TYPE_WORD) ? emit(VM_STRWORD) : emit(VM_STRBYTE));
 }
 
@@ -2313,18 +2255,18 @@ unsigned char setintvar(char *name, int idx, int value)
     /* Error if try to set const */
     if (ptr->type & 0x20) {
         error(ERR_STCONST);
-	return 1;
+        return 1;
     }
 
     if (!isarray) {
-	/*
-	 * Scalars
-	 */
+        /*
+         * Scalars
+         */
         if (idx != -1) {
-	    /* Means [..] subscript was provided */
-	    error(ERR_SUBSCR);
-	    return 1;
-	}
+            /* Means [..] subscript was provided */
+            error(ERR_SUBSCR);
+            return 1;
+        }
         if (compile) {
             /*
              * When we are at the top level scope (global scope), all
@@ -2335,9 +2277,9 @@ unsigned char setintvar(char *name, int idx, int value)
              */
             emitldi(*getptrtoscalarword(ptr));
             if (local && compilingsub) {
-	        siv_st_rel(type);
+                siv_st_rel(type);
             } else {
-		siv_st_abs(type);
+                siv_st_abs(type);
             }
         } else {
             if (type == TYPE_WORD) {
@@ -2347,41 +2289,42 @@ unsigned char setintvar(char *name, int idx, int value)
             }
         }
     } else {
-	/*
-	 * Arrays
-	 */
+        /*
+         * Arrays
+         */
         if (idx == -1) {
-	    /* Means [..] subscript was never provided */
-	    error(ERR_SUBSCR);
-	    return 1;
-	}
-        bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
+            /* Means [..] subscript was never provided */
+            error(ERR_SUBSCR);
+            return 1;
+        }
+        bodyptr =
+            (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
             /* *** Index is on the stack (X) */
             emit(VM_SWAP);
             if (type == TYPE_WORD) {
-		emitldi(1);
-		emit(VM_LSH);
-	    }
+                emitldi(1);
+                emit(VM_LSH);
+            }
             emitldi((int) ((int *) bodyptr));
-	    /*
-	     * If the array size field is -1, this means the bodyptr is a
-	     * pointer to a pointer to the body (rather than pointer to
-	     * the body), so it needs to be dereferenced one more time.
-	     */
+            /*
+             * If the array size field is -1, this means the bodyptr is a
+             * pointer to a pointer to the body (rather than pointer to
+             * the body), so it needs to be dereferenced one more time.
+             */
             if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-	        emit(VM_LDRWORD);
-	    }
+                emit(VM_LDRWORD);
+            }
             emit(VM_ADD);
             if (local && compilingsub) {
                 if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		    siv_st_abs(type);
-		} else {
-		    siv_st_rel(type);
-		}
+                    siv_st_abs(type);
+                } else {
+                    siv_st_rel(type);
+                }
             } else {
-		siv_st_abs(type);
+                siv_st_abs(type);
             }
         } else {
             if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
@@ -2402,14 +2345,16 @@ unsigned char setintvar(char *name, int idx, int value)
 /* Factored out to save a few bytes
  * Used by getintvar() only.
  */
-void giv_ld_abs(unsigned char type) {
+void giv_ld_abs(unsigned char type)
+{
     (((type & 0x0f) == TYPE_WORD) ? emit(VM_LDAWORD) : emit(VM_LDABYTE));
 }
 
 /* Factored out to save a few bytes
  * Used by getintvar() only.
  */
-void giv_ld_rel(unsigned char type) {
+void giv_ld_rel(unsigned char type)
+{
     (((type & 0x0f) == TYPE_WORD) ? emit(VM_LDRWORD) : emit(VM_LDRBYTE));
 }
 
@@ -2454,14 +2399,14 @@ unsigned char getintvar(char *name,
     }
 
     if (!isarray) {
-	/*
-	 * Scalars
-	 */
+        /*
+         * Scalars
+         */
         if (idx != -1) {
-	    /* Means [..] subscript was provided */
-	    error(ERR_SUBSCR);
-	    return 1;
-	}
+            /* Means [..] subscript was provided */
+            error(ERR_SUBSCR);
+            return 1;
+        }
         if (compile) {
             /*
              * When we are at the top level scope (global scope), all
@@ -2499,58 +2444,59 @@ unsigned char getintvar(char *name,
             }
         }
     } else {
-	/*
-	 * Arrays
-	 * Note the special cases, for an array A:
-	 * 1) &A is the same as &A[0]
-	 * 2) A is the same as &A[0]
-	 * This second case is needed to make the eval() work propertly
-	 * for array pass-by-reference.
-	 */
+        /*
+         * Arrays
+         * Note the special cases, for an array A:
+         * 1) &A is the same as &A[0]
+         * 2) A is the same as &A[0]
+         * This second case is needed to make the eval() work propertly
+         * for array pass-by-reference.
+         */
         if (idx == -1) {
-	    /* Means [..] subscript was never provided */
-	    address = 1;
-	    idx = 0;
-	    if (compile) {
-	        emitldi(0);
-	    }
-	}
-        bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
+            /* Means [..] subscript was never provided */
+            address = 1;
+            idx = 0;
+            if (compile) {
+                emitldi(0);
+            }
+        }
+        bodyptr =
+            (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
             /* *** Index is on the stack (X) *** */
             if ((*type & 0x0f) == TYPE_WORD) {
-		emitldi(1);
-		emit(VM_LSH);
-	    }
+                emitldi(1);
+                emit(VM_LSH);
+            }
             emitldi((int) ((int *) bodyptr));
-	    /*
-	     * If the array size field is -1, this means the bodyptr is a
-	     * pointer to a pointer to the body (rather than pointer to
-	     * the body), so it needs to be dereferenced one more time.
-	     */
+            /*
+             * If the array size field is -1, this means the bodyptr is a
+             * pointer to a pointer to the body (rather than pointer to
+             * the body), so it needs to be dereferenced one more time.
+             */
             if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-	        emit(VM_LDRWORD);
-	    }
+                emit(VM_LDRWORD);
+            }
             emit(VM_ADD);
-	    if (!address) {
+            if (!address) {
                 if (local && compilingsub) {
                     if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) == -1) {
-		        giv_ld_abs(*type);
-		    } else {
-		        giv_ld_rel(*type);
-		    }
+                        giv_ld_abs(*type);
+                    } else {
+                        giv_ld_rel(*type);
+                    }
                 } else {
-		    giv_ld_abs(*type);
+                    giv_ld_abs(*type);
                 }
-	    } else {
+            } else {
                 if (local && compilingsub) {
                     if (*(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)) != -1) {
-	                /* Convert to absolute address */
-			emit(VM_RTOA);
-		    }
-	        }
-    	    }
+                        /* Convert to absolute address */
+                        emit(VM_RTOA);
+                    }
+                }
+            }
         } else {
             if ((idx < 0) || (idx >= *(int *) ((unsigned char *) ptr + sizeof(var_t) + sizeof(int)))) {
                 error(ERR_SUBSCR);
@@ -2617,7 +2563,7 @@ void doif(unsigned char arg)
         /* **** Value of IF expression is on the VM stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);
-        emitldi(0xffff); /* To be filled in later */
+        emitldi(0xffff);        /* To be filled in later */
         emit(VM_BRNCH);
         push_return(0);
     } else {
@@ -2651,7 +2597,7 @@ unsigned char doelse()
          * Code to jump over ELSE block when IF condition is true
          */
         return_stack[returnSP + 1] = rtPC;
-        emitldi(0xffff); /* To be filled in later */
+        emitldi(0xffff);        /* To be filled in later */
         emit(VM_JMP);
 
         /*
@@ -2764,7 +2710,7 @@ unsigned char assignorcreate(unsigned char mode)
     unsigned char isarray = 0;
     unsigned char local = 0;
     unsigned char oldcompile = compile;
-    
+
     if (!txtPtr || !isalphach(*txtPtr)) {
         error(ERR_VAR);
         return RET_ERROR;
@@ -2785,15 +2731,15 @@ unsigned char assignorcreate(unsigned char mode)
         switch (mode) {
         case WORD_MODE:
         case BYTE_MODE:
-	    onlyconstants = 1; /* Only parse constants - no variables  */
-	    compile = 0;       /* Use subscript() to eval, not codegen */
+            onlyconstants = 1;  /* Only parse constants - no variables  */
+            compile = 0;        /* Use subscript() to eval, not codegen */
             if (subscript(&i) == 1) {
-		onlyconstants = 0;
-		compile = oldcompile;
+                onlyconstants = 0;
+                compile = oldcompile;
                 return RET_ERROR;
             }
-	    onlyconstants = 0; /* Back to normal service */
-	    compile = oldcompile;
+            onlyconstants = 0;  /* Back to normal service */
+            compile = oldcompile;
             break;
         default:
             if (subscript(&i) == 1) {
@@ -2811,7 +2757,7 @@ unsigned char assignorcreate(unsigned char mode)
     eatspace();
 
     if (mode == CONST_MODE) {
-        compile = 0; /* Eval, not codegen */
+        compile = 0;            /* Eval, not codegen */
     }
 
     /*
@@ -2821,7 +2767,7 @@ unsigned char assignorcreate(unsigned char mode)
      */
     if (!isarray || (mode == LET_MODE) || (mode == FOR_MODE)) {
         if (eval((mode != FOR_MODE), &j)) {
-	    compile = 1;
+            compile = 1;
             return RET_ERROR;
         }
     }
@@ -2835,16 +2781,18 @@ unsigned char assignorcreate(unsigned char mode)
         if (i == 0) {
             ++i;
         }
-        if (createintvar(name, ((mode == CONST_MODE) ? TYPE_CONST : ((mode == WORD_MODE) ? TYPE_WORD : TYPE_BYTE)), isarray, i, j, 0)) {
+        if (createintvar(name,
+                         ((mode == CONST_MODE) ? TYPE_CONST : ((mode == WORD_MODE) ? TYPE_WORD : TYPE_BYTE)),
+                         isarray, i, j, 0)) {
             return RET_ERROR;
         }
         break;
 
     case LET_MODE:
     case FOR_MODE:
-	if (!isarray) {
-	   i = -1;
-	}
+        if (!isarray) {
+            i = -1;
+        }
         if (setintvar(name, i, j)) {
             return RET_ERROR;
         }
@@ -2900,9 +2848,9 @@ unsigned char assignorcreate(unsigned char mode)
     if (compile) {
         /* Find out if it is a local or a global */
         findintvar(name, &local);
-	push_return(local && compilingsub); /* 0: absolute, 1: relative addr */
+        push_return(local && compilingsub);     /* 0: absolute, 1: relative addr */
         push_return(rtPC);      /* Store PC for compile case */
-	emit(VM_DUP);
+        emit(VM_DUP);
 
         /* Loop limit k should be on the runtime VM stack already */
         push_return(j);
@@ -2924,6 +2872,7 @@ unsigned char assignorcreate(unsigned char mode)
  *   statement, or -1 in immediate mode.
  * - oldTxtPtr is the stashed text pointer, which is expected to point
  *   to the code immediately after the opening loop statement.
+ * This is used by the interpreter only.
  */
 void backtotop(int linenum, char *oldTxtPtr)
 {
@@ -2982,15 +2931,15 @@ unsigned char doendfor()
             emit((type == TYPE_WORD) ? VM_LDRWORD : VM_LDRBYTE);
         } else {
             emit((type == TYPE_WORD) ? VM_LDAWORD : VM_LDABYTE);
-	}
+        }
         emit(VM_INC);
         emit(VM_DUP);
         emitldi(return_stack[returnSP + 2]);
         if (return_stack[returnSP + 4]) {
             emit((type == TYPE_WORD) ? VM_STRWORD : VM_STRBYTE);
-	} else {
+        } else {
             emit((type == TYPE_WORD) ? VM_STAWORD : VM_STABYTE);
-	}
+        }
         emit(VM_GTE);
         emitldi(return_stack[returnSP + 3]);
         emit(VM_BRNCH);
@@ -3013,8 +2962,7 @@ unsigned char doendfor()
             ++(*(unsigned char *) (return_stack[returnSP + 1]));
         }
 
-        backtotop(return_stack[returnSP + 4],
-                  (char *) return_stack[returnSP + 3]);
+        backtotop(return_stack[returnSP + 4], (char *) return_stack[returnSP + 3]);
 
         return RET_SUCCESS;
     }
@@ -3208,15 +3156,15 @@ unsigned char dosubr()
         print(readbuf);
         print("\n");
 
-	/*
-	 * Create entry in subroutine table
-	 * Allocate this on the top-down stack in arena 2.  This grows down towards the
-	 * source code, which is growing up from the bottom of arena 2.
-	 */
+        /*
+         * Create entry in subroutine table
+         * Allocate this on the top-down stack in arena 2.  This grows down towards the
+         * source code, which is growing up from the bottom of arena 2.
+         */
         s = alloc2top(sizeof(sub_t));
-    	strncpy(s->name, readbuf, SUBRNUMCHARS);
-	s->addr = rtPC;
-	s->next = NULL;
+        strncpy(s->name, readbuf, SUBRNUMCHARS);
+        s->addr = rtPC;
+        s->next = NULL;
 
         if (subsend) {
             subsend->next = s;
@@ -3225,7 +3173,7 @@ unsigned char dosubr()
         if (!subsbegin) {
             subsbegin = s;
         }
-	
+
         vars_markcallframe();
 
         /* Update frame pointer */
@@ -3283,47 +3231,50 @@ unsigned char dosubr()
              * Set up the variables for the formal parameters,
              * pointing back to the storage already allocated on
              * the eval stack by the caller.  Each time we add
-	     * a parameter, adjust the relative addresses of all
-	     * the previously handled parameters.
-	     */
+             * a parameter, adjust the relative addresses of all
+             * the previously handled parameters.
+             */
             v = varslocal;
             while (v) {
                 if (v->name[0] != '-') {
-                   if (arraymode || (type == TYPE_WORD)) {
-                       *(int *) ((unsigned char *) v + sizeof(var_t)) += 2;
-                   } else {
-                       *(int *) ((unsigned char *) v + sizeof(var_t)) += 1;
-                   }
-		}
+                    if (arraymode || (type == TYPE_WORD)) {
+                        *(int *) ((unsigned char *) v + sizeof(var_t)) +=
+                            2;
+                    } else {
+                        *(int *) ((unsigned char *) v + sizeof(var_t)) +=
+                            1;
+                    }
+                }
                 v = v->next;
             }
 
-	    if (arraymode) {
+            if (arraymode) {
                 v = alloc1(sizeof(var_t) + 2 * sizeof(int));
-	    } else {
+            } else {
                 v = alloc1(sizeof(var_t) + sizeof(int));
-	    }
+            }
 
             *(int *) ((unsigned char *) v + sizeof(var_t)) = 4; // Skip over return address and frame pointer
             strncpy(v->name, name, VARNUMCHARS);
             v->type = (arraymode << 4) | type;
             v->next = NULL;
 
-	    if (arraymode) {
+            if (arraymode) {
                 /*
-		 * Array pass-by-reference.
-		 *
-		 * In this case the pointer to the array body was pushed to the
-		 * call stack by the caller, and the var_t record records the
-		 * pointer to this pointer!
-		 *
-		 * Array size is not used in compiled code, so set it to -1 to
-		 * indicate array-pass-by-reference.  Code in setintvar() and
-		 * getintvar() uses this to work out that it has to do an extra
-		 * dereference.
-		 */
-                *(int *) ((unsigned char *) v + sizeof(var_t) + sizeof(int)) = -1;
-	    }
+                 * Array pass-by-reference.
+                 *
+                 * In this case the pointer to the array body was pushed to the
+                 * call stack by the caller, and the var_t record records the
+                 * pointer to this pointer!
+                 *
+                 * Array size is not used in compiled code, so set it to -1 to
+                 * indicate array-pass-by-reference.  Code in setintvar() and
+                 * getintvar() uses this to work out that it has to do an extra
+                 * dereference.
+                 */
+                *(int *) ((unsigned char *) v + sizeof(var_t) +
+                          sizeof(int)) = -1;
+            }
 
             if (varsend) {
                 varsend->next = v;
@@ -3360,7 +3311,7 @@ unsigned char doendsubr()
         rtSP = rtFP;
         compilingsub = 0;
         vars_deletecallframe();
-	emitldi(0);
+        emitldi(0);
     }
     doreturn(0);
     return RET_SUCCESS;
@@ -3393,11 +3344,11 @@ unsigned char docall()
      * Do this before evaluating arguments, which overwrites readbuf
      */
     if (compile) {
-	 /*
-          * Allocate this on the top-down stack in arena 2.  This grows down
-	  * towards the source code, which is growing up from the bottom of
-	  * arena 2.
-	  */
+        /*
+         * Allocate this on the top-down stack in arena 2.  This grows down
+         * towards the source code, which is growing up from the bottom of
+         * arena 2.
+         */
         s = alloc2top(sizeof(sub_t));
         strncpy(s->name, readbuf, SUBRNUMCHARS);
     }
@@ -3570,10 +3521,10 @@ unsigned char docall()
                         if (compile) {
                             if (type == TYPE_WORD) {
                                 emit(VM_PSHWORD);
-				argbytes += 2;
+                                argbytes += 2;
                             } else {
                                 emit(VM_PSHBYTE);
-				++argbytes;
+                                ++argbytes;
                             }
                         } else {
                             /* Back to new frame to create var */
@@ -3584,13 +3535,12 @@ unsigned char docall()
                         /*
                          * Array pass-by-reference
                          */
-			if (!compile) {
+                        if (!compile) {
                             for (j = 0; j < VARNUMCHARS; ++j) {
                                 name2[j] = 0;
                             }
                             j = 0;
-                            while (txtPtr && (isalphach(*txtPtr)
-                                          || isdigitch(*txtPtr))) {
+                            while (txtPtr && (isalphach(*txtPtr) || isdigitch(*txtPtr))) {
                                 if (j < VARNUMCHARS) {
                                     name2[j] = *txtPtr;
                                 }
@@ -3618,15 +3568,15 @@ unsigned char docall()
                                          *(getptrtoscalarword(array) + 1),
                                          0, *getptrtoscalarword(array));
 
-			} else {
+                        } else {
                             if (eval(0, &arg)) {
                                 /* No expression found */
                                 error(ERR_ARG);
                                 return RET_ERROR;
                             }
                             emit(VM_PSHWORD);
-			    argbytes += 2;
-			}
+                            argbytes += 2;
+                        }
                     }
                     eatspace();
                     if (*txtPtr == ',') {
@@ -3709,8 +3659,8 @@ unsigned char doreturn(int retvalue)
     if (compile) {
 
         /*
-	 * Return value is already on evaluation stack
-	 */
+         * Return value is already on evaluation stack
+         */
 
         /* Update stack pointer to drop local variables */
         emit(VM_FPTOSP);
@@ -3880,7 +3830,8 @@ unsigned char parsehexint(int *val)
  *                  must start with alpha character and has no spaces.
  *  CUSTOM: the statement has its own custom code to handle parameters
  */
-enum stmnttype { FULLLINE,
+enum stmnttype {
+    FULLLINE,
     NOARGS,
     ONEARG,
     TWOARGS,
@@ -3915,50 +3866,50 @@ struct stmnttabent {
 struct stmnttabent stmnttab[] = {
 
     /* Statements */
-    {"\'", TOK_COMM, FULLLINE},            /* 1 */
-    {"pr.dec", TOK_PRDEC, ONEARG},         /* 2 */
-    {"pr.dec.s", TOK_PRDEC_S, ONEARG},     /* 3 */
-    {"pr.hex", TOK_PRHEX, ONEARG},         /* 4 */
-    {"pr.msg", TOK_PRMSG, ONESTRARG},      /* 5 */
-    {"pr.nl", TOK_PRNL, NOARGS},           /* 6 */
-    {"pr.str", TOK_PRSTR, ONEARG},         /* 7 */
-    {"pr.ch", TOK_PRCH, ONEARG},           /* 8 */
-    {"kbd.ch", TOK_KBDCH, ONEARG},         /* 9 */
-    {"kbd.ln", TOK_KBDLN, TWOARGS},        /* 10 */
-    {"quit", TOK_QUIT, NOARGS},            /* 11 */
-    {"clear", TOK_CLEAR, NOARGS},          /* 12 */
-    {"vars", TOK_VARS, NOARGS},            /* 13 */
-    {"word", TOK_WORD, CUSTOM},            /* 14 */
-    {"byte", TOK_BYTE, CUSTOM},            /* 15 */
-    {"const", TOK_CONST, CUSTOM},          /* 16 */
-    {"run", TOK_RUN, NOARGS},              /* 17 */
-    {"comp", TOK_COMPILE, NOARGS},         /* 18 */
-    {"new", TOK_NEW, NOARGS},              /* 19 */
-    {"sub", TOK_SUBR, INITIALNAMEARG},     /* 20 */
-    {"endsub", TOK_ENDSUBR, NOARGS},       /* 21 */
-    {"if", TOK_IF, ONEARG},                /* 22 */
-    {"else", TOK_ELSE, NOARGS},            /* 23 */
-    {"endif", TOK_ENDIF, NOARGS},          /* 24 */
-    {"free", TOK_FREE, NOARGS},            /* 25 */
-    {"call", TOK_CALL, INITIALNAMEARG},    /* 26 */
-    {"return", TOK_RET, ONEARG},           /* 27 */
-    {"for", TOK_FOR, CUSTOM},              /* 28 */
-    {"endfor", TOK_ENDFOR, NOARGS},        /* 29 */
-    {"while", TOK_WHILE, ONEARG},          /* 30 */
-    {"endwhile", TOK_ENDW, NOARGS},        /* 31 */
-    {"end", TOK_END, NOARGS},              /* 32 */
-    {"mode", TOK_MODE, ONEARG},            /* 33 */
-    {"*", TOK_POKEWORD, INITIALARG},       /* 34 */
-    {"^", TOK_POKEBYTE, INITIALARG},       /* 35 */
+    {"\'", TOK_COMM, FULLLINE},         /* 1 */
+    {"pr.dec", TOK_PRDEC, ONEARG},      /* 2 */
+    {"pr.dec.s", TOK_PRDEC_S, ONEARG},  /* 3 */
+    {"pr.hex", TOK_PRHEX, ONEARG},      /* 4 */
+    {"pr.msg", TOK_PRMSG, ONESTRARG},   /* 5 */
+    {"pr.nl", TOK_PRNL, NOARGS},        /* 6 */
+    {"pr.str", TOK_PRSTR, ONEARG},      /* 7 */
+    {"pr.ch", TOK_PRCH, ONEARG},        /* 8 */
+    {"kbd.ch", TOK_KBDCH, ONEARG},      /* 9 */
+    {"kbd.ln", TOK_KBDLN, TWOARGS},     /* 10 */
+    {"quit", TOK_QUIT, NOARGS},         /* 11 */
+    {"clear", TOK_CLEAR, NOARGS},       /* 12 */
+    {"vars", TOK_VARS, NOARGS},         /* 13 */
+    {"word", TOK_WORD, CUSTOM},         /* 14 */
+    {"byte", TOK_BYTE, CUSTOM},         /* 15 */
+    {"const", TOK_CONST, CUSTOM},       /* 16 */
+    {"run", TOK_RUN, NOARGS},           /* 17 */
+    {"comp", TOK_COMPILE, NOARGS},      /* 18 */
+    {"new", TOK_NEW, NOARGS},           /* 19 */
+    {"sub", TOK_SUBR, INITIALNAMEARG},  /* 20 */
+    {"endsub", TOK_ENDSUBR, NOARGS},    /* 21 */
+    {"if", TOK_IF, ONEARG},             /* 22 */
+    {"else", TOK_ELSE, NOARGS},         /* 23 */
+    {"endif", TOK_ENDIF, NOARGS},       /* 24 */
+    {"free", TOK_FREE, NOARGS},         /* 25 */
+    {"call", TOK_CALL, INITIALNAMEARG}, /* 26 */
+    {"return", TOK_RET, ONEARG},        /* 27 */
+    {"for", TOK_FOR, CUSTOM},           /* 28 */
+    {"endfor", TOK_ENDFOR, NOARGS},     /* 29 */
+    {"while", TOK_WHILE, ONEARG},       /* 30 */
+    {"endwhile", TOK_ENDW, NOARGS},     /* 31 */
+    {"end", TOK_END, NOARGS},           /* 32 */
+    {"mode", TOK_MODE, ONEARG},         /* 33 */
+    {"*", TOK_POKEWORD, INITIALARG},    /* 34 */
+    {"^", TOK_POKEBYTE, INITIALARG},    /* 35 */
 
     /* Editor commands */
-    {":r", TOK_LOAD, ONESTRARG},           /* 36 */
-    {":w", TOK_SAVE, ONESTRARG},           /* 37 */
-    {":l", TOK_LIST, CUSTOM},              /* 38 */
-    {":c", TOK_CHANGE, INITIALARG},        /* 39 */
-    {":a", TOK_APP, ONEARG},               /* 40 */
-    {":i", TOK_INS, ONEARG},               /* 41 */
-    {":d", TOK_DEL, INITIALARG}            /* 42 - set NUMSTMNTS to this value */
+    {":r", TOK_LOAD, ONESTRARG},        /* 36 */
+    {":w", TOK_SAVE, ONESTRARG},        /* 37 */
+    {":l", TOK_LIST, CUSTOM},           /* 38 */
+    {":c", TOK_CHANGE, INITIALARG},     /* 39 */
+    {":a", TOK_APP, ONEARG},            /* 40 */
+    {":i", TOK_INS, ONEARG},            /* 41 */
+    {":d", TOK_DEL, INITIALARG}         /* 42 - set NUMSTMNTS to this value */
 };
 
 /*
@@ -3982,7 +3933,7 @@ unsigned char matchstatement()
         if (!strncmp(txtPtr, s->name, len)) {
             /*
              * Do not check for whitespace for tokens >= TOK_POKEWORD
-	     * Also do not check for whitespace for tokens <= TOK_COMM.
+             * Also do not check for whitespace for tokens <= TOK_COMM.
              */
             if ((s->token >= TOK_POKEWORD) || (s->token <= TOK_COMM)) {
                 return s->token;
@@ -4239,11 +4190,11 @@ unsigned char parseline()
                 emitldi(0x8000);
                 emit(VM_BITAND);
                 emit(VM_NOT);
-                emitldi(rtPC + 9);   /* Jump over printing of '-' */
+                emitldi(rtPC + 9);      /* Jump over printing of '-' */
                 emit(VM_BRNCH);
                 emitldi('-');
                 emit(VM_PRCH);
-		emit(VM_NEG);
+                emit(VM_NEG);
                 emit(VM_PRDEC);
             }
             if (arg < 0) {
@@ -4260,11 +4211,11 @@ unsigned char parseline()
             }
             break;
         case TOK_PRMSG:
-	    if (compile) {
-		emitprmsg();
-	    } else {
-            	print(readbuf);
-	    }
+            if (compile) {
+                emitprmsg();
+            } else {
+                print(readbuf);
+            }
             break;
         case TOK_PRNL:
             if (compile) {
@@ -4279,11 +4230,11 @@ unsigned char parseline()
             }
             break;
         case TOK_PRSTR:
-	    if (compile) {
-		emit(VM_PRSTR);
-	    } else {
+            if (compile) {
+                emit(VM_PRSTR);
+            } else {
                 print((char *) arg);
-	    }
+            }
             break;
         case TOK_PRCH:
             if (compile) {
@@ -4293,13 +4244,13 @@ unsigned char parseline()
             }
             break;
         case TOK_KBDCH:
-	    if (compile) {
-		/* Address should be on the eval stack already */
-	        emit(VM_KBDCH);
-		/* Now the keycode is pushed to the eval stack also */
-		emit(VM_SWAP);
-		emit(VM_STABYTE);
-	    } else {
+            if (compile) {
+                /* Address should be on the eval stack already */
+                emit(VM_KBDCH);
+                /* Now the keycode is pushed to the eval stack also */
+                emit(VM_SWAP);
+                emit(VM_STABYTE);
+            } else {
 #ifdef A2E
                 /* Loop until we get a keypress */
                 while (!(arg2 = getkey()));
@@ -4310,15 +4261,15 @@ unsigned char parseline()
 #else
                 print("kbd.ch unimplemented on Linux\n");
 #endif
-	    }
+            }
             break;
         case TOK_KBDLN:
-	    if (compile) {
+            if (compile) {
                 /* Address and length should both be on the eval stack */
-		emit(VM_KBDLN);
+                emit(VM_KBDLN);
             } else {
                 getln((char *) arg, arg2);
-	    }
+            }
             break;
         case TOK_CLEAR:
             clearvars();
@@ -4346,15 +4297,15 @@ unsigned char parseline()
             break;
         case TOK_COMPILE:
             compile = 1;
-	    subsbegin = subsend = NULL;
-	    callsbegin = callsend = NULL;
+            subsbegin = subsend = NULL;
+            callsbegin = callsend = NULL;
             CLEARRTCALLSTACK();
             run(0);
             emit(VM_END);
-	    linksubs();
+            linksubs();
             writebytecode();
 #ifndef __GNUC__
-	    CLEARHEAP2TOP(); /* Clear the linkage table */
+            CLEARHEAP2TOP();    /* Clear the linkage table */
 #endif
             compile = 0;
             break;
@@ -4366,25 +4317,25 @@ unsigned char parseline()
                 return 2;
             }
             break;
-	case TOK_ENDSUBR:
-	    if (doendsubr()) {
+        case TOK_ENDSUBR:
+            if (doendsubr()) {
                 return 2;
-	    }
-	    break;
+            }
+            break;
         case TOK_CALL:
             if (docall()) {
                 return 2;
             }
-	    if (compile) {
-	        /* Drop the return value */
-	        emit(VM_DROP);
-	    } else {
+            if (compile) {
+                /* Drop the return value */
+                emit(VM_DROP);
+            } else {
                 /* If we were called from immediate mode ... */
                 /* Switch to run mode and continue */
                 if (return_stack[returnSP + 2] == -1) {
                     run(1);
                 }
-	    }
+            }
             break;
         case TOK_RET:
             if (doreturn(arg)) {
@@ -4439,18 +4390,18 @@ unsigned char parseline()
                 return 1;       /* Normal stop */
             }
             break;
-	case TOK_MODE:
+        case TOK_MODE:
 #ifdef A2E
-	    if (arg == 40) {
+            if (arg == 40) {
                 videomode(VIDEOMODE_40COL);
-	    } else if (arg == 80) {
-		videomode(VIDEOMODE_80COL);
-	    } else {
+            } else if (arg == 80) {
+                videomode(VIDEOMODE_80COL);
+            } else {
                 error(ERR_VALUE);
-		return 2;
-	    }
+                return 2;
+            }
 #endif
-	    break;
+            break;
         case TOK_FREE:
 #ifdef CC65
             printdec(getfreespace1());
@@ -4878,23 +4829,24 @@ void run(unsigned char cont)
  * The subroutine definitions are in the list that starts with subsbegin.
  * The subroutine calls are in the list that starts with callsbegin.
  */
-void linksubs() {
-	sub_t *call;
-	sub_t *sub;
-	call = callsbegin;
-	while (call) {
-		sub = subsbegin;
-		
-		while (strncmp(sub->name, call->name, SUBRNUMCHARS)) {
-			sub = sub->next;
-			if (!sub) {
-				error(ERR_LINK);
-				return;
-			}
-		}
-		emit_fixup(call->addr, sub->addr);
-		call = call->next;
-	}
+void linksubs()
+{
+    sub_t *call;
+    sub_t *sub;
+    call = callsbegin;
+    while (call) {
+        sub = subsbegin;
+
+        while (strncmp(sub->name, call->name, SUBRNUMCHARS)) {
+            sub = sub->next;
+            if (!sub) {
+                error(ERR_LINK);
+                return;
+            }
+        }
+        emit_fixup(call->addr, sub->addr);
+        call = call->next;
+    }
 }
 
 void list(unsigned int startline, unsigned int endline)
@@ -4930,9 +4882,9 @@ void list(unsigned int startline, unsigned int endline)
  * Clear the operator and operand stacks prior to evaluating expression.
  */
 #define clearexprstacks() \
-	operandSP = STACKSZ - 1; \
-	operatorSP = STACKSZ - 1; \
-	push_operator_stack(SENTINEL);
+    operandSP = STACKSZ - 1; \
+    operatorSP = STACKSZ - 1; \
+    push_operator_stack(SENTINEL);
 
 
 /*

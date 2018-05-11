@@ -50,6 +50,9 @@
 #define DEBUGSTACK
 */
 
+/* Define STACKCHECKS to enable paranoid stack checking */
+#define STACKCHECKS
+
 #include "eightballvm.h"
 #include "eightballutils.h"
 
@@ -115,6 +118,8 @@ unsigned char *memory = 0;
 * are helpful for debugging!
 */
 
+#ifdef STACKCHECKS
+
 /* Check evaluation stack is not going to underflow */
 #define CHECKUNDERFLOW(level) checkunderflow(level)
 
@@ -126,6 +131,15 @@ unsigned char *memory = 0;
 
 /* Check call stack is not going to overflow */
 #define CHECKSTACKOVERFLOW(bytes) checkstackoverflow(bytes)
+
+#else
+
+/* For production use, do not do these checks */
+#define CHECKUNDERFLOW(level)
+#define CHECKOVERFLOW()
+#define CHECKSTACKUNDERFLOW(bytes)
+#define CHECKSTACKOVERFLOW(bytes)
+#endif
 
 /* Handler for unsupported bytecode */
 #define UNSUPPORTED() unsupported()
@@ -761,6 +775,9 @@ void load()
 int main()
 {
     print("EightBallVM v" VERSIONSTR "\n");
+#ifdef STACKCHECKS
+    print("[Stack Checks ON]\n");
+#endif
     print("(c)Bobbi, 2018\n\n");
     print("Loading bytecode: ");
     load();
