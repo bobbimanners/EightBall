@@ -1150,8 +1150,9 @@ Here is the well-known Sieve of Eratosthenes algorithm for finding prime numbers
 ```
  ' Sieve of Eratosthenes
 
-byte A[20*20] = 1
-call doall(20, A)
+const sz=20
+byte A[sz*sz] = 1
+call doall(sz, A)
 end
 
 sub doall(word nr, byte array[])
