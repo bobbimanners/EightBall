@@ -1151,7 +1151,12 @@ Here is the well-known Sieve of Eratosthenes algorithm for finding prime numbers
  ' Sieve of Eratosthenes
 
 const sz=20
-byte A[sz*sz] = 1
+byte A[sz*sz] = {}
+word i=0
+pr.msg "Initializing array ..."; pr.nl
+for i=0:sz-1
+ A[i]=1
+endfor
 call doall(sz, A)
 end
 
