@@ -104,13 +104,17 @@ test.d64: 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg unittest.8bp sieve
 	c1541 -attach test.d64 -write unittest.8bp unit.8b,s
 	c1541 -attach test.d64 -write sieve4.8bp sieve4.8b,s
 
-test.dsk: eightball.system ebvm.system sieve4.8b
+test.dsk: eightball.system ebvm.system sieve4.8b tetris.8b bytecode
 	java -jar $(APPLECMDR) -d test.dsk e8ball.system
 	java -jar $(APPLECMDR) -d test.dsk ebvm.system
 	java -jar $(APPLECMDR) -d test.dsk sieve4.8b
+	java -jar $(APPLECMDR) -d test.dsk tetris.8b
+	java -jar $(APPLECMDR) -d test.dsk bytecode
 	java -jar $(APPLECMDR) -p test.dsk e8ball.system sys <eightball.system 
 	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
 	java -jar $(APPLECMDR) -p test.dsk sieve4.8b txt <sieve4.8b
+	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <tetris.8b
+	java -jar $(APPLECMDR) -p test.dsk bytecode txt <bytecode
 
 xvic: test.d64
 	xvic -mem all -drive8type 1541 -8 test.d64

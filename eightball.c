@@ -1232,9 +1232,11 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
  *   Heap 2: Program text
  */
 #define HEAP1TOP (char*)0xb7ff
-#define HEAP1LIM (char*)0x9800
+//#define HEAP1LIM (char*)0x9800
+#define HEAP1LIM (char*)0xa800
 
-#define HEAP2TOP (char*)0x97ff
+//#define HEAP2TOP (char*)0x97ff
+#define HEAP2TOP (char*)0xa7ff
 #define HEAP2LIM (char*)0x8a00
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
@@ -2560,7 +2562,7 @@ void doif(unsigned char arg)
     push_return(IFFRAME);
 
     if (compile) {
-        /* **** Value of IF expression is on the VM stack **** */
+        /* **** Value of IF expression is on the eval stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);
         emitldi(0xffff);        /* To be filled in later */
@@ -2828,9 +2830,9 @@ unsigned char assignorcreate(unsigned char mode)
      * When compiling:
      *
      * - Magic value FORFRAME_B or FORFRAME_W.
+     * - 0 if absolute addressing, 1 if relative addressing
      * - Runtime PC
      * - Pointer to loop control variable.
-     * - Dummy word
      * - Dummy word
      */
 
@@ -2849,10 +2851,11 @@ unsigned char assignorcreate(unsigned char mode)
         /* Find out if it is a local or a global */
         findintvar(name, &local);
         push_return(local && compilingsub);     /* 0: absolute, 1: relative addr */
-        push_return(rtPC);      /* Store PC for compile case */
-        emit(VM_DUP);
 
-        /* Loop limit k should be on the runtime VM stack already */
+        /* Loop limit k should be on the runtime eval stack, move it to call stack */
+        emit(VM_PSHWORD);
+
+        push_return(rtPC);      /* Store PC so we know where to come back to */
         push_return(j);
         push_return(0);         /* Dummy */
     } else {
@@ -2925,13 +2928,19 @@ unsigned char doendfor()
     }
 
     if (compile) {
-        /* **** Loop limit is on the VM stack **** */
-        emitldi(return_stack[returnSP + 2]);
-        if (return_stack[returnSP + 4]) {
+        /* **** Loop limit is on the call stack **** */
+        emit(VM_POPWORD);
+        emit(VM_DUP);
+        emit(VM_PSHWORD);
+
+        emitldi(return_stack[returnSP + 2]); /* Pointer to loop variable */
+        if (return_stack[returnSP + 4]) {    /* Rel or abs */
             emit((type == TYPE_WORD) ? VM_LDRWORD : VM_LDRBYTE);
         } else {
             emit((type == TYPE_WORD) ? VM_LDAWORD : VM_LDABYTE);
         }
+
+        /* Increment and store loop variable */
         emit(VM_INC);
         emit(VM_DUP);
         emitldi(return_stack[returnSP + 2]);
@@ -2940,9 +2949,14 @@ unsigned char doendfor()
         } else {
             emit((type == TYPE_WORD) ? VM_STAWORD : VM_STABYTE);
         }
+
+        /* Compare with loop limit already on eval stack */
         emit(VM_GTE);
-        emitldi(return_stack[returnSP + 3]);
+        emitldi(return_stack[returnSP + 3]); /* Branch destination */
         emit(VM_BRNCH);
+
+        /* Drop loop limit from call stack */
+        emit(VM_POPWORD);
         emit(VM_DROP);
         goto unwind;
     }
@@ -3010,7 +3024,7 @@ void dowhile(char *startTxtPtr, unsigned char arg)
 
     if (compile) {
         push_return(rtPCBeforeEval);
-        /* **** Value of WHILE expression is on the VM stack **** */
+        /* **** Value of WHILE expression is on the eval stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);  /* Address of dummy 0xffff */
         emitldi(0xffff);
@@ -3623,10 +3637,12 @@ unsigned char docall()
 
                     /* Caller must drop the arguments
                      * pushed to call stack above */
-                    for (j = 0; j < argbytes; ++j) {
-                        emit(VM_POPBYTE);
-                        emit(VM_DROP);
-                    }
+                    emitldi(argbytes);
+                    emit(VM_DISCARD);
+                    //for (j = 0; j < argbytes; ++j) {
+                    //    emit(VM_POPBYTE);
+                    //    emit(VM_DROP);
+                    //}
                 } else {
                     /* Stash pointer to just after the call stmt */
                     push_return((int) txtPtr);
@@ -4975,6 +4991,7 @@ main()
 #endif
         }
 
+        compile = 0;
         getln(lnbuf, 255);
 
         switch (editmode) {

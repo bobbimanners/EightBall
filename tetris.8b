@@ -1,0 +1,306 @@
+' Apple II Low Res Tetris
+' Bobbi 2018
+
+word addrs[24]={$400,$480,$500,$580,$600,$680,$700,$780,$428,$4a8,$528,$5a8,$628,$6a8,$728,$7a8,$450,$4d0,$550,$5d0,$650,$6d0,$750,$7d0}
+
+const lhs=14
+const rhs=lhs+11
+const top=10
+const bttm=top+22
+const spkr=$c030
+const kbdata=$c000
+const kbstrb=$c010
+
+byte col=18
+byte row=5
+byte rot=0
+byte key=0
+byte ocol=18
+byte orow=5
+byte orot=0
+byte piece=0
+
+byte canl=1
+byte canr=1
+
+call lores()
+call clrlo()
+call frame()
+
+while 1
+ key=getkey()
+ orow=row;ocol=col;orot=rot
+ if key=='s'
+  if rot==3
+   rot=0
+  else
+   rot=rot+1
+  endif
+ else
+  if (key=='a')&&canl
+   col=col-1
+  else
+   if (key=='d')&&canr
+    col=col+1
+   endif
+  endif
+ endif
+ key=^spkr
+ row=row+1
+ canl=1
+ canr=1
+ call drawPiece(ocol,orow,orot,1); 'Erase
+ if drawPiece(col,row,rot,0)
+  call checkframe(row)
+  col=18;row=5;rot=0
+  piece=piece+1
+  if piece==4
+   piece=0
+  endif
+ endif
+endwhile
+call text()
+end
+
+sub getkey()
+ if ^kbdata<128
+  return 0
+ endif
+ ^kbstrb=0
+ return ^kbdata
+endsub
+
+sub lores()
+ ^$c050=0
+ ^$c052=0
+ ^$c054=0
+ ^$c056=0
+endsub
+
+sub loresmix()
+ ^$c050=0
+ ^$c053=0
+ ^$c054=0
+ ^$c056=0
+endsub
+
+sub text()
+ ^$c051=0
+ ^$c054=0
+endsub
+
+sub clrlo()
+ byte r=0
+ byte c=0
+ for r=0:23
+  for c=0:39
+   ^(addrs[r]+c)=0
+  endfor
+ endfor
+endsub
+
+sub plot(byte c,byte r,byte color)
+ word a=addrs[r/2]+c
+ if r%2
+  ^a=(^a&$0f)|(color<<4)
+ else
+  ^a=(^a&$f0)|color
+ endif
+endsub
+
+sub readpix(byte c,byte r)
+ word a=addrs[r/2]+c
+ if r%2
+  return (^a&$f0)>>4
+ else
+  return ^a&$0f
+ endif
+endsub
+
+sub hlin(byte c1,byte c2,byte r,byte color)
+ byte i=0
+ for i=c1:c2
+  call plot(i,r,color)
+ endfor
+endsub
+
+sub vlin(byte c,byte r1,byte r2,byte color)
+ byte i=0
+ for i=r1:r2
+  call plot(c,i,color)
+ endfor
+endsub
+
+sub frame()
+ call hlin(lhs,rhs,bttm,4)
+ call vlin(lhs,top,bttm,4)
+ call vlin(rhs,top,bttm,4)
+endsub
+
+sub drawPiece(byte c,byte r,byte rot,byte erase)
+ if piece==0
+  return drawT(c,r,rot,erase)
+ else; if piece==1
+  return drawZ(c,r,rot,erase)
+ else; if piece==2
+  return drawSq(c,r,rot,erase)
+ else
+  return drawI(c,r,rot,erase)
+ endif;endif;endif
+endsub
+ 
+sub drawT(byte c,byte r,byte rot,byte erase)
+ byte color=1
+ if erase
+  color=0
+ endif
+ if rot==0
+  call plot(c,r+1,color)
+  call plot(c+1,r+1,color)
+  call plot(c+2,r+1,color)
+  call plot(c+1,r+2,color)
+  canl=!(readpix(c-1,r+1)||readpix(c,r+2))
+  canr=!(readpix(c+3,r+1)||readpix(c+2,r+2))
+  return readpix(c,r+2)||readpix(c+1,r+3)||readpix(c+2,r+2)
+ else
+  if rot==1
+   call plot(c+1,r,color)
+   call plot(c,r+1,color)
+   call plot(c+1,r+1,color)
+   call plot(c+1,r+2,color)
+   canl=!(readpix(c,r)||readpix(c-1,r+1)||readpix(c,r+2))
+   canr=!(readpix(c+2,r)||readpix(c+2,r+1)||readpix(c+2,r+2))
+   return readpix(c,r+2)||readpix(c+1,r+3)
+  else
+   if rot==2
+    call plot(c+1,r,color)
+    call plot(c,r+1,color)
+    call plot(c+1,r+1,color)
+    call plot(c+2,r+1,color)
+    canl=!(readpix(c,r)||readpix(c-1,r+1))
+    canr=!(readpix(c+2,r)||readpix(c+3,r+1))
+    return readpix(c,r+2)||readpix(c+1,r+2)||readpix(c+2,r+2)
+   else
+    if rot==3
+     call plot(c+1,r,color)
+     call plot(c+1,r+1,color)
+     call plot(c+2,r+1,color)
+     call plot(c+1,r+2,color)
+     canl=!(readpix(c,r)||readpix(c,r+1)||readpix(c,r+2))
+     canr=!(readpix(c+2,r)||readpix(c+3,r+1)||readpix(c+2,r+2))
+     return readpix(c+1,r+3)||readpix(c+2,r+2)
+    endif
+   endif
+  endif
+ endif
+endsub
+
+sub drawZ(byte c,byte r,byte rot,byte erase)
+ byte color=2
+ if erase
+  color=0
+ endif
+ if (rot==0)||(rot==2)
+  call plot(c+1,r,color)
+  call plot(c+1,r+1,color)
+  call plot(c+2,r+1,color)
+  call plot(c+2,r+2,color)
+  canl=!(readpix(c,r)||readpix(c,r+1)||readpix(c,r+2))
+  canr=!(readpix(c+2,r)||readpix(c+3,r+1)||readpix(c+3,r+2))
+  return readpix(c+2,r+3)
+ else
+  if (rot==1)||(rot==3)
+   call plot(c+1,r+1,color)
+   call plot(c+2,r+1,color)
+   call plot(c,r+2,color)
+   call plot(c+1,r+2,color)
+  canl=!(readpix(c,r+1)||readpix(c-1,r+2))
+  canr=!(readpix(c+3,r+1)||readpix(c+2,r+2))
+  return readpix(c,r+3)||readpix(c+1,r+3)
+  endif
+ endif
+endsub
+
+sub drawI(byte c,byte r,byte rot,byte erase)
+ byte color=14
+ if erase
+  color=0
+ endif
+ if (rot==0)||(rot==2)
+  call plot(c,r+2,color)
+  call plot(c+1,r+2,color)
+  call plot(c+2,r+2,color)
+  call plot(c+3,r+2,color)
+  canl=!readpix(c-1,r+2)
+  canr=!readpix(c+4,r+2)
+  return readpix(c,r+3)||readpix(c+1,r+3)||readpix(c+2,r+3)||readpix(c+3,r+3)
+ else
+  if (rot==1)||(rot==3)
+   call plot(c+2,r,color)
+   call plot(c+2,r+1,color)
+   call plot(c+2,r+2,color)
+   call plot(c+2,r+3,color)
+   canl=!(readpix(c+1,r)||readpix(c+1,r+1)||readpix(c+1,r+2)||readpix(c+1,r+3))
+   canr=!(readpix(c+3,r)||readpix(c+3,r+1)||readpix(c+3,r+2)||readpix(c+3,r+3))
+  return readpix(c+2,r+4)
+  endif
+ endif
+endsub
+
+sub drawSq(byte c,byte r,byte rot,byte erase)
+ byte color=13
+ if erase
+  color=0
+ endif
+ call plot(c+1,r+1,color)
+ call plot(c+2,r+1,color)
+ call plot(c+1,r+2,color)
+ call plot(c+2,r+2,color)
+ canl=!(readpix(c,r+1)||readpix(c,r+2))
+ canr=!(readpix(c+3,r+1)||readpix(c+3,r+2))
+ return readpix(c+1,r+3)||readpix(c+2,r+3)
+endsub
+
+sub checkframe(byte r)
+ byte rr=r+3
+ if rr>bttm-1
+  rr=bttm-1
+ endif
+ while rr>=r
+  if checkline(rr)
+   pr.ch 7; 'Beep
+  else
+   rr=rr-1
+  endif
+ endwhile
+endsub
+
+sub checkline(byte r)
+ byte c=0
+ for c=lhs+1:rhs-1
+  if !readpix(c,r)
+   return 0
+  endif
+ endfor
+ call deleterow(r)
+ return 1
+endsub
+
+sub deleterow(byte r)
+ byte i=r
+ byte c=0
+ byte v=0
+ byte empty=0
+ while (i>top+1)&&(!empty)
+  empty=1
+  for c=lhs+1:rhs-1
+   v=readpix(c,i-1)
+   if v
+    empty=0
+   endif
+   call plot(c,i,v)
+  endfor
+  i=i-1
+ endwhile
+endsub
+

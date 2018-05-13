@@ -51,7 +51,11 @@
 */
 
 /* Define STACKCHECKS to enable paranoid stack checking */
+#ifdef __GNUC__
 #define STACKCHECKS
+#else
+#undef STACKCHECKS
+#endif
 
 #include "eightballvm.h"
 #include "eightballutils.h"
@@ -180,7 +184,8 @@ void checkstackunderflow(unsigned char bytes)
 {
     if ((MEMORYSZ - sp) < bytes) {
         print("Call stack underflow\nPC=");
-        printhex(pc); printchar('\n');
+        printhex(pc);
+        printchar('\n');
         while (1);
     }
 }
@@ -227,12 +232,19 @@ void execute_instruction()
 #ifdef DEBUGREGS
     unsigned int i;
     print("\n");
-    print("--->PC "); printhex(pc); print("\n");
-    print("--->SP "); printhex(sp); print("\n");
-    print("--->FP "); printhex(fp); print("\n");
+    print("--->PC ");
+    printhex(pc);
+    print("\n");
+    print("--->SP ");
+    printhex(sp);
+    print("\n");
+    print("--->FP ");
+    printhex(fp);
+    print("\n");
     print("Call Stk: ");
-    for(i = sp+1; i <= RTCALLSTACKTOP; ++i) {
-	printhexbyte(memory[i]); printchar(' ');
+    for (i = sp + 1; i <= RTCALLSTACKTOP; ++i) {
+        printhexbyte(memory[i]);
+        printchar(' ');
     }
     print("\nEval Stk: ");
     printhex(XREG);
@@ -293,25 +305,25 @@ void execute_instruction()
          * Miscellaneous
          */
     case VM_END:               /* Terminate execution                                          */
-	if (evalptr > 0) {
-	    print("WARNING: evalptr ");
-	    printdec(evalptr);
-	    printchar('\n');
-	}
+        if (evalptr > 0) {
+            print("WARNING: evalptr ");
+            printdec(evalptr);
+            printchar('\n');
+        }
 #ifdef __GNUC__
         exit(0);
 #else
         for (delay = 0; delay < 25000; ++delay);
-	exit(0);
+        exit(0);
 #endif
         break;
 
-	/*
-	 * Load Immediate
-	 */
+        /*
+         * Load Immediate
+         */
     case VM_LDIMM:             /* Pushes the following 16 bit word to the evaluation stack     */
         ++evalptr;
-	CHECKOVERFLOW();
+        CHECKOVERFLOW();
         /* Note: Word is stored in little endian format! */
         tempword = memory[++pc];
         tempword += memory[++pc] * 256;
@@ -364,7 +376,9 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        XREG = memory[(XREG + fp + 1) & 0xffff] + 256 * memory[(XREG + fp + 2) & 0xffff];
+        XREG =
+            memory[(XREG + fp + 1) & 0xffff] +
+            256 * memory[(XREG + fp + 2) & 0xffff];
         break;
     case VM_LDRBYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
         CHECKUNDERFLOW(1);
@@ -446,10 +460,11 @@ void execute_instruction()
         XREG = memory[sp];
         break;
     case VM_PSHWORD:           /* Push 16 bit value in X onto call stack.  Drop X.             */
+        CHECKUNDERFLOW(1);
 
 #ifdef DEBUGSTACK
         print("\n  Push word to ");
-        printhex(sp-1);
+        printhex(sp - 1);
         printchar('\n');
 #endif
 
@@ -462,6 +477,7 @@ void execute_instruction()
         --evalptr;
         break;
     case VM_PSHBYTE:           /* Push 8 bit value in X onto call stack.  Drop X.              */
+        CHECKUNDERFLOW(1);
 
 #ifdef DEBUGSTACK
         print("\n  Push byte to ");
@@ -474,17 +490,22 @@ void execute_instruction()
         CHECKSTACKOVERFLOW();
         --evalptr;
         break;
+    case VM_DISCARD:           /* Discard X bytes from call stack.  Drop X.                    */
+        CHECKUNDERFLOW(1);
+        sp += XREG;
+        --evalptr;
+        break;
     case VM_SPTOFP:            /* Copy stack pointer to frame pointer. (Enter function scope)  */
 
 #ifdef DEBUGSTACK
         print("\n  SPTOFP  FP before ");
         printhex(fp);
-	print(" SP ");
+        print(" SP ");
         printhex(sp);
         printchar('\n');
 #endif
 
-	/* Push old FP to stack */
+        /* Push old FP to stack */
         memory[sp] = (fp & 0xff00) >> 8;
         --sp;
         CHECKSTACKOVERFLOW();
@@ -499,14 +520,14 @@ void execute_instruction()
 #ifdef DEBUGSTACK
         print("\n  FPTOSP  SP before ");
         printhex(sp);
-	print(" FP ");
+        print(" FP ");
         printhex(fp);
         printchar('\n');
 #endif
 
         sp = fp;
 
-	/* Pop old FP from stack -> FP */
+        /* Pop old FP from stack -> FP */
         CHECKSTACKUNDERFLOW(2);
         sp += 2;
         CHECKOVERFLOW();
@@ -514,17 +535,17 @@ void execute_instruction()
 
 #ifdef DEBUGSTACK
         print("  Recovered FP ");
-	printhex(fp);
-	print(" from stack\n");
+        printhex(fp);
+        print(" from stack\n");
 #endif
 
         break;
     case VM_ATOR:              /* Convert absolute address in X to relative address            */
         XREG = (XREG - fp - 1) & 0xffff;
-	break;
+        break;
     case VM_RTOA:              /* Convert relative address in X to absolute address            */
         XREG = (XREG + fp + 1) & 0xffff;
-	break;
+        break;
         /*
          * Integer math
          */
@@ -699,20 +720,20 @@ void execute_instruction()
         CHECKUNDERFLOW(1);
         printchar((unsigned char) XREG);
         --evalptr;
-	break;
+        break;
     case VM_PRSTR:             /* Print null terminated string pointed to by X.  Drop X        */
         CHECKUNDERFLOW(1);
-	while(memory[XREG]) {
-	    printchar(memory[XREG++]);
-	}
+        while (memory[XREG]) {
+            printchar(memory[XREG++]);
+        }
         --evalptr;
-	break;
+        break;
     case VM_PRMSG:             /* Print literal string at PC (null terminated)                 */
-	++pc;
-	while(memory[pc]) {
-	    printchar(memory[pc++]);
-	}
-	break;
+        ++pc;
+        while (memory[pc]) {
+            printchar(memory[pc++]);
+        }
+        break;
     case VM_KBDCH:             /* Push character from keyboard onto eval stack                 */
         CHECKUNDERFLOW(1);
         ++evalptr;
@@ -723,15 +744,15 @@ void execute_instruction()
         while (!(*(char *) XREG = cbm_k_getin()));
 #else
         /* TODO: Unimplemented in Linux */
-	XREG = 0;
+        XREG = 0;
 #endif
-	break;
-    case VM_KBDLN:            /* Obtain line from keyboard and write to memory pointed to by  */
-                              /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
+        break;
+    case VM_KBDLN:             /* Obtain line from keyboard and write to memory pointed to by  */
+        /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
         CHECKUNDERFLOW(2);
         getln((char *) &memory[YREG], XREG);
-	evalptr -= 2;
-	break;
+        evalptr -= 2;
+        break;
         /*
          * Unsupported instruction
          */
@@ -786,7 +807,7 @@ int main()
     videomode(VIDEOMODE_80COL);
     clrscr();
 #elif defined(CBM)
-    printchar(147); /* Clear */
+    printchar(147);             /* Clear */
 #endif
     execute();
     return 0;

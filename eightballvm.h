@@ -68,140 +68,142 @@
  *                  stack, and also to release the locals on return from sub.)
  */
 enum bytecode {
-	/**** Miscellaneous ********************************************************/
-	VM_END,    /* Terminate execution                                          */
-	/**** Load Immediate *******************************************************/
-	VM_LDIMM,  /* Pushes the following 16 bit word to the evaluation stack     */
-	/* Absolute addressing:                                                    */
-       	VM_LDAWORD,/* Replaces X with 16 bit value pointed to by X.                */
-       	VM_LDABYTE,/* Replaces X with 8 bit value pointed to by X.                 */
-       	VM_STAWORD,/* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
-       	VM_STABYTE,/* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
-	/* Relative to Frame Pointer addressing:                                   */
-       	VM_LDRWORD,/* Replaces X with 16 bit value pointed to by X.                */
-       	VM_LDRBYTE,/* Replaces X with 8 bit value pointed to by X.                 */
-       	VM_STRWORD,/* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
-       	VM_STRBYTE,/* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
-	/**** Manipulate evaluation stack ******************************************/
-	VM_SWAP,   /* Swaps X and Y                                                */
-	VM_DUP,    /* Duplicates X -> X, Y                                         */
-	VM_DUP2,   /* Duplicates X -> X,Z; Y -> Y,T                                */
-	VM_DROP,   /* Drops X                                                      */
-	VM_OVER,   /* Duplicates Y -> X,Z                                          */
-	VM_PICK,   /* Duplicates stack level specified in X+1 -> X                 */
-	/**** Manipulate call stack ************************************************/
-	VM_POPWORD,/* Pop 16 bit value from call stack, push onto eval stack [X]   */
-	VM_POPBYTE,/* Pop 8 bit value from call stack, push onto eval stack [X]    */
-	VM_PSHWORD,/* Push 16 bit value in X onto call stack.  Drop X.             */
-	VM_PSHBYTE,/* Push 8 bit value in X onto call stack.  Drop X.              */
-	VM_SPTOFP, /* Copy stack pointer to frame pointer. (Enter function scope)  */
-	VM_FPTOSP, /* Copy frame pointer to stack pointer. (Release local vars)    */
-	VM_ATOR,   /* Convert absolute address in X to relative address            */
-	VM_RTOA,   /* Convert relative address in X to absolute address            */
-	/**** Integer math *********************************************************/
-	VM_INC,    /* X = X+1.                                                     */
-	VM_DEC,    /* X = X-1.                                                     */
-	VM_ADD,    /* X = Y+X.  Y is dropped.                                      */
-	VM_SUB,    /* X = Y-X.  Y is dropped.                                      */
-	VM_MUL,    /* X = Y*X.  Y is dropped.                                      */
-	VM_DIV,    /* X = Y/X.  Y is dropped.                                      */
-	VM_MOD,    /* X = Y%X.  Y is dropped                                     . */
-	VM_NEG,    /* X = -X                                                       */
-	/**** Comparisons **********************************************************/
-	VM_GT,     /* X = Y>X.  Y is dropped.                                      */
-	VM_GTE,    /* X = Y>=X. Y is dropped.                                      */
-	VM_LT,     /* X = Y<X.  Y is dropped.                                      */
-	VM_LTE,    /* X = Y<=X. Y is dropped.                                      */
-	VM_EQL,    /* X = Y==X. Y is dropped.                                      */
-	VM_NEQL,   /* X = Y!=X. Y is dropped.                                      */
-	/**** Logical operations ***************************************************/
-	VM_AND,    /* X = Y&&X. Y is dropped.                                      */
-	VM_OR,     /* X = Y||X. Y is dropped.                                      */
-	VM_NOT,    /* X = !X                                                       */
-	/**** Bitwise operations ***************************************************/
-	VM_BITAND, /* X = Y&X. Y is dropped.                                       */
-	VM_BITOR,  /* X = Y|X. Y is dropped.                                       */
-	VM_BITXOR, /* X = Y^X. Y is dropped.                                       */
-	VM_BITNOT, /* X = ~X.                                                      */
-	VM_LSH,    /* X = Y<<X. Y is dropped.                                      */
-	VM_RSH,    /* X = Y>>X. Y is dropped.                                      */
-	/**** Flow control *********************************************************/
-	VM_JMP,    /* Jump to address X.  Drop X.                                  */
-	VM_BRNCH,  /* If Y!= 0, jump to address X.  Drop X, Y.                     */
-	VM_JSR,    /* Push PC to call stack.  Jump to address X.  Drop X.          */
-	VM_RTS,    /* Pop call stack, jump to the address popped.                  */
-	/**** Input / Output *******************************************************/
-	VM_PRDEC,  /* Print 16 bit decimal in X.  Drop X                           */
-	VM_PRHEX,  /* Print 16 bit hex in X.  Drop X                               */
-	VM_PRCH,   /* Print character in X.  Drop X                                */
-	VM_PRSTR,  /* Print null terminated string pointed to by X.  Drop X        */
-	VM_PRMSG,  /* Print literal string at PC (null terminated)                 */
-	VM_KBDCH,  /* Push character from keyboard onto eval stack                 */
-	VM_KBDLN   /* Obtain line from keyboard and write to memory pointed to by  */
-	/*            Y. X contains the max number of bytes in buf. Drop X, Y.     */
-	/***************************************************************************/
+    /**** Miscellaneous *************************************************************************/
+    VM_END,                     /* Terminate execution                                          */
+    /**** Load Immediate ************************************************************************/
+    VM_LDIMM,                   /* Pushes the following 16 bit word to the evaluation stack     */
+    /* Absolute addressing:                                                                     */
+    VM_LDAWORD,                 /* Replaces X with 16 bit value pointed to by X.                */
+    VM_LDABYTE,                 /* Replaces X with 8 bit value pointed to by X.                 */
+    VM_STAWORD,                 /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
+    VM_STABYTE,                 /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
+    /* Relative to Frame Pointer addressing:                                                    */
+    VM_LDRWORD,                 /* Replaces X with 16 bit value pointed to by X.                */
+    VM_LDRBYTE,                 /* Replaces X with 8 bit value pointed to by X.                 */
+    VM_STRWORD,                 /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
+    VM_STRBYTE,                 /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
+    /**** Manipulate evaluation stack ***********************************************************/
+    VM_SWAP,                    /* Swaps X and Y                                                */
+    VM_DUP,                     /* Duplicates X -> X, Y                                         */
+    VM_DUP2,                    /* Duplicates X -> X,Z; Y -> Y,T                                */
+    VM_DROP,                    /* Drops X                                                      */
+    VM_OVER,                    /* Duplicates Y -> X,Z                                          */
+    VM_PICK,                    /* Duplicates stack level specified in X+1 -> X                 */
+    /**** Manipulate call stack *****************************************************************/
+    VM_POPWORD,                 /* Pop 16 bit value from call stack, push onto eval stack [X]   */
+    VM_POPBYTE,                 /* Pop 8 bit value from call stack, push onto eval stack [X]    */
+    VM_PSHWORD,                 /* Push 16 bit value in X onto call stack.  Drop X.             */
+    VM_PSHBYTE,                 /* Push 8 bit value in X onto call stack.  Drop X.              */
+    VM_DISCARD,                 /* Discard X bytes from call stack.  Drop X.                    */
+    VM_SPTOFP,                  /* Copy stack pointer to frame pointer. (Enter function scope)  */
+    VM_FPTOSP,                  /* Copy frame pointer to stack pointer. (Release local vars)    */
+    VM_ATOR,                    /* Convert absolute address in X to relative address            */
+    VM_RTOA,                    /* Convert relative address in X to absolute address            */
+    /**** Integer math **************************************************************************/
+    VM_INC,                     /* X = X+1.                                                     */
+    VM_DEC,                     /* X = X-1.                                                     */
+    VM_ADD,                     /* X = Y+X.  Y is dropped.                                      */
+    VM_SUB,                     /* X = Y-X.  Y is dropped.                                      */
+    VM_MUL,                     /* X = Y*X.  Y is dropped.                                      */
+    VM_DIV,                     /* X = Y/X.  Y is dropped.                                      */
+    VM_MOD,                     /* X = Y%X.  Y is dropped                                     . */
+    VM_NEG,                     /* X = -X                                                       */
+    /**** Comparisons ***************************************************************************/
+    VM_GT,                      /* X = Y>X.  Y is dropped.                                      */
+    VM_GTE,                     /* X = Y>=X. Y is dropped.                                      */
+    VM_LT,                      /* X = Y<X.  Y is dropped.                                      */
+    VM_LTE,                     /* X = Y<=X. Y is dropped.                                      */
+    VM_EQL,                     /* X = Y==X. Y is dropped.                                      */
+    VM_NEQL,                    /* X = Y!=X. Y is dropped.                                      */
+    /**** Logical operations ********************************************************************/
+    VM_AND,                     /* X = Y&&X. Y is dropped.                                      */
+    VM_OR,                      /* X = Y||X. Y is dropped.                                      */
+    VM_NOT,                     /* X = !X                                                       */
+    /**** Bitwise operations ********************************************************************/
+    VM_BITAND,                  /* X = Y&X. Y is dropped.                                       */
+    VM_BITOR,                   /* X = Y|X. Y is dropped.                                       */
+    VM_BITXOR,                  /* X = Y^X. Y is dropped.                                       */
+    VM_BITNOT,                  /* X = ~X.                                                      */
+    VM_LSH,                     /* X = Y<<X. Y is dropped.                                      */
+    VM_RSH,                     /* X = Y>>X. Y is dropped.                                      */
+    /**** Flow control **************************************************************************/
+    VM_JMP,                     /* Jump to address X.  Drop X.                                  */
+    VM_BRNCH,                   /* If Y!= 0, jump to address X.  Drop X, Y.                     */
+    VM_JSR,                     /* Push PC to call stack.  Jump to address X.  Drop X.          */
+    VM_RTS,                     /* Pop call stack, jump to the address popped.                  */
+    /**** Input / Output ************************************************************************/
+    VM_PRDEC,                   /* Print 16 bit decimal in X.  Drop X                           */
+    VM_PRHEX,                   /* Print 16 bit hex in X.  Drop X                               */
+    VM_PRCH,                    /* Print character in X.  Drop X                                */
+    VM_PRSTR,                   /* Print null terminated string pointed to by X.  Drop X        */
+    VM_PRMSG,                   /* Print literal string at PC (null terminated)                 */
+    VM_KBDCH,                   /* Push character from keyboard onto eval stack                 */
+    VM_KBDLN                    /* Obtain line from keyboard and write to memory pointed to by  */
+                                /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
+    /********************************************************************************************/
 };
 
 /* Order must match enum bytecode */
 char *bytecodenames[] = {
-	"END",
-	"LDI",
-	"LDAW",
-	"LDAB",
-	"STAW",
-	"STAB",
-	"LDRW",
-	"LDRB",
-	"STRW",
-	"STRB",
-	"SWP",
-	"DUP",
-	"DUP2",
-	"DRP",
-	"OVER",
-	"PICK",
-	"POPW",
-	"POPB",
-	"PSHW",
-	"PSHB",
-	"SPFP",
-	"FPSP",
-	"ATOR",
-	"RTOA",
-	"INC",
-	"DEC",
-	"ADD",
-	"SUB",
-	"MUL",
-	"DIV",
-	"MOD",
-	"NEG",
-	"GT",
-	"GTE",
-	"LT",
-	"LTE",
-	"EQL",
-	"NEQL",
-	"AND",
-	"OR",
-	"NOT",
-	"BAND",
-	"BOR",
-	"BXOR",
-	"BNOT",
-	"LSH",
-	"RSH",
-	"JMP",
-	"BRC",
-	"JSR",
-	"RTS",
-	"PRDEC",
-	"PRHEX",
-	"PRCH",
-	"PRSTR",
-        "PRMSG",
-        "KBDCH",
-	"KBDLN"
+    "END",
+    "LDI",
+    "LDAW",
+    "LDAB",
+    "STAW",
+    "STAB",
+    "LDRW",
+    "LDRB",
+    "STRW",
+    "STRB",
+    "SWP",
+    "DUP",
+    "DUP2",
+    "DRP",
+    "OVER",
+    "PICK",
+    "POPW",
+    "POPB",
+    "PSHW",
+    "PSHB",
+    "DISC",
+    "SPFP",
+    "FPSP",
+    "ATOR",
+    "RTOA",
+    "INC",
+    "DEC",
+    "ADD",
+    "SUB",
+    "MUL",
+    "DIV",
+    "MOD",
+    "NEG",
+    "GT",
+    "GTE",
+    "LT",
+    "LTE",
+    "EQL",
+    "NEQL",
+    "AND",
+    "OR",
+    "NOT",
+    "BAND",
+    "BOR",
+    "BXOR",
+    "BNOT",
+    "LSH",
+    "RSH",
+    "JMP",
+    "BRC",
+    "JSR",
+    "RTS",
+    "PRDEC",
+    "PRHEX",
+    "PRCH",
+    "PRSTR",
+    "PRMSG",
+    "KBDCH",
+    "KBDLN"
 };
 
 #ifdef A2E
@@ -211,7 +213,7 @@ char *bytecodenames[] = {
  */
 #define RTCALLSTACKTOP 0xb7ff
 #define RTCALLSTACKLIM 0x9800
-#define RTPCSTART      0x5000 /* TBC */
+#define RTPCSTART      0x5000   /* TBC */
 
 #elif defined(C64)
 
@@ -220,7 +222,7 @@ char *bytecodenames[] = {
  */
 #define RTCALLSTACKTOP 0xbfff
 #define RTCALLSTACKLIM 0xa000
-#define RTPCSTART      0x3000 /* TBC */
+#define RTPCSTART      0x3000   /* TBC */
 
 #elif defined(VIC20)
 
@@ -229,7 +231,7 @@ char *bytecodenames[] = {
  */
 #define RTCALLSTACKTOP 0xbfff
 #define RTCALLSTACKLIM 0xa000
-#define RTPCSTART      0x4000 /* TBC */
+#define RTPCSTART      0x4000   /* TBC */
 
 #elif defined(__GNUC__)
 
@@ -237,8 +239,10 @@ char *bytecodenames[] = {
  * Linux
  */
 //#define RTCALLSTACKTOP 64 * 1024 - 1
-#define RTCALLSTACKTOP 48 * 1024 - 1  // FOR TESTING
-#define RTCALLSTACKLIM 32 * 1024
-#define RTPCSTART 0
+//#define RTCALLSTACKTOP 48 * 1024 - 1    // FOR TESTING
+#define RTCALLSTACKTOP 0xb7ff
+//#define RTCALLSTACKLIM 32 * 1024
+#define RTCALLSTACKLIM 0x9800
+//#define RTPCSTART 0
+#define RTPCSTART 0x5000 // SO THINGS WORK ON APPLE II :)
 #endif
-
