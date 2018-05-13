@@ -765,6 +765,12 @@ Prints a hexadecimal value to the console (prefixed with '$'):
 Prints a newline to the console:
 
     pr.nl
+    
+#### pr.ch
+Prints a character to the console:
+
+    pr.ch 'A'
+    pr.ch 65; ' Same as above
 
 #### pr.str
 Prints a byte array as a string to the console.  The string is null terminated (so printing stops at the first 0 character):
@@ -782,11 +788,7 @@ This is for setting the text video mode on the Apple II only.  It only works in 
 #### kbd.ch
 Allows a single character to be read from the keyboard.  Be careful - this function assumes the argument passed to it a pointer to a byte value into which the character may be stored.
 
-Character literals may be used with `kbd.ch`:
-
-    pr.ch 'A'
-
-Or we can print a character obtained from the keyboard:
+We can print a character obtained from the keyboard as follows:
 
     byte c = 0
     while 1
