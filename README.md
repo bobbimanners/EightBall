@@ -1202,4 +1202,4 @@ sub printresults(word n, byte AA[])
 endsub
 ``` 
 
-(See the Wiki for more code examples.)
+(See the [Wiki](https://github.com/bobbimanners/EightBall/wiki) for more code examples.)
