@@ -136,8 +136,6 @@ void getln(char *str, unsigned char buflen)
     unsigned char j = 0;
 #ifdef A2E
     unsigned char key;
-    unsigned char xpos;
-    unsigned char ypos;
 #endif
     do {
         i = read(0, str + j, 1);

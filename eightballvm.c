@@ -785,12 +785,17 @@ void load()
     fp = fopen("bytecode", "r");
     while (!feof(fp)) {
         ch = fgetc(fp);
-        //printhexbyte(ch);
-        //printchar('\n');
         memory[pc++] = ch;
+        /* Print dot for each page */
+        if (pc%0xff == 0) {
+            printchar('.');
+        }
     }
     fclose(fp);
     pc = RTPCSTART;
+#ifdef A2E
+    printchar(7);
+#endif
 }
 
 int main()
@@ -799,10 +804,14 @@ int main()
 #ifdef STACKCHECKS
     print("[Stack Checks ON]\n");
 #endif
-    print("(c)Bobbi, 2018\n\n");
+    print("(c)Bobbi, 2018\n");
+    print("Free Software.\n");
+    print("Licenced under GPL.\n\n");
     print("Loading bytecode: ");
     load();
-    print("Done\n");
+#ifdef __GNUC__
+    print(" Done.\n\n");
+#endif
 #ifdef A2E
     videomode(VIDEOMODE_80COL);
     clrscr();

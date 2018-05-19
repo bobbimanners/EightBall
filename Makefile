@@ -13,7 +13,7 @@ APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
 all: eightball eightballvm 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg eightball.system ebvm.system test.d64 test.dsk
 
 clean:
-	rm -f eightball eightballvm *.o 8ball20.* 8ball64.* eightball*.s eightball.system test.d64 *.map
+	rm -f eightball eightballvm *.o 8ball20.* 8ball64.* eightball*.s eightball.system test.d64 *.map *.vice
 
 eightball.o: eightball.c eightballutils.h eightballvm.h
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]

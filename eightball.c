@@ -3637,12 +3637,10 @@ unsigned char docall()
 
                     /* Caller must drop the arguments
                      * pushed to call stack above */
-                    emitldi(argbytes);
-                    emit(VM_DISCARD);
-                    //for (j = 0; j < argbytes; ++j) {
-                    //    emit(VM_POPBYTE);
-                    //    emit(VM_DROP);
-                    //}
+                    if (argbytes) {
+                        emitldi(argbytes);
+                        emit(VM_DISCARD);
+                    }
                 } else {
                     /* Stash pointer to just after the call stmt */
                     push_return((int) txtPtr);
