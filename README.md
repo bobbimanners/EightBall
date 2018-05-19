@@ -1201,3 +1201,5 @@ sub printresults(word n, byte AA[])
   return 0
 endsub
 ``` 
+
+(See the Wiki for more code examples.)
