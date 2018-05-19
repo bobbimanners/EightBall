@@ -945,6 +945,7 @@ The call stack is used for all memory allocation within the virtual machine, as 
 | POPB        | Pop 8 bit value from call stack, push onto eval stack [X]           |
 | PSHW        | Push 16 bit value in X onto call stack.  Drop X.                    |
 | PSHB        | Push 8 bit value in X onto call stack.  Drop X.                     |
+| DISC        | Discard X bytes from call stack.  Drop X.                           |
 | SPTOFP      | Copy stack pointer to frame pointer. (Enter function scope)         |
 | FPTOSP      | Copy frame pointer to stack pointer. (Release local vars)           |
 | ATOR        | Convert absolute address in X to FP-relative address                |
