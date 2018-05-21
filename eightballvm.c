@@ -62,6 +62,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef A2E
 #include <conio.h>
@@ -84,7 +85,7 @@
 #ifdef __GNUC__
 #define UINT16 unsigned short
 #else
-#define UINT16 unsigned int
+#define UINT16 unsigned short
 #endif
 
 UINT16 pc = RTPCSTART;          /* Program counter */
@@ -116,11 +117,11 @@ unsigned char *memory = 0;
 #define TREG evalstack[evalptr - 4]     /* Only valid if evalptr >= 4 */
 
 /*
-* Error checks are called through macros to make it easy to
-* disable them in production.  We should not need these checks
-* in production (assuming no bugs in the compiler!) ... but they
-* are helpful for debugging!
-*/
+ * Error checks are called through macros to make it easy to
+ * disable them in production.  We should not need these checks
+ * in production (assuming no bugs in the compiler!) ... but they
+ * are helpful for debugging!
+ */
 
 #ifdef STACKCHECKS
 
@@ -148,10 +149,11 @@ unsigned char *memory = 0;
 /* Handler for unsupported bytecode */
 #define UNSUPPORTED() unsupported()
 
+#ifdef STACKCHECKS
 /*
-* Check for evaluation stack underflow.
-* level - Number of 16 bit operands required on eval stack.
-*/
+ * Check for evaluation stack underflow.
+ * level - Number of 16 bit operands required on eval stack.
+ */
 void checkunderflow(unsigned char level)
 {
     if (evalptr < level) {
@@ -163,9 +165,9 @@ void checkunderflow(unsigned char level)
 }
 
 /*
-* Check evaluation stack is not going to overflow.
-* Assumes evalptr has already been advanced.
-*/
+ * Check evaluation stack is not going to overflow.
+ * Assumes evalptr has already been advanced.
+ */
 void checkoverflow()
 {
     if (evalptr > EVALSTACKSZ - 1) {
@@ -177,9 +179,9 @@ void checkoverflow()
 }
 
 /*
-* Check call stack is not going to underflow.
-* bytes - Number of bytes required on call stack.
-*/
+ * Check call stack is not going to underflow.
+ * bytes - Number of bytes required on call stack.
+ */
 void checkstackunderflow(unsigned char bytes)
 {
     if ((MEMORYSZ - sp) < bytes) {
@@ -191,9 +193,9 @@ void checkstackunderflow(unsigned char bytes)
 }
 
 /*
-* Check call stack is not going to overflow.
-* Assumes sp has already been advanced.
-*/
+ * Check call stack is not going to overflow.
+ * Assumes sp has already been advanced.
+ */
 void checkstackoverflow()
 {
     if (sp < CALLSTACKLIM + 1) {
@@ -203,10 +205,11 @@ void checkstackoverflow()
         while (1);
     }
 }
+#endif
 
 /*
-* Handler for unsupported bytecodes
-*/
+ * Handler for unsupported bytecodes
+ */
 void unsupported()
 {
     print("Unsupported instruction ");
@@ -218,19 +221,20 @@ void unsupported()
 }
 
 /*
-* Fetch, decode and execute a VM instruction, then advance the program counter.
-*/
+ * Fetch, decode and execute a VM instruction, then advance the program counter.
+ */
 void execute_instruction()
 {
-    unsigned int tempword;
+    unsigned short tempword;
+    unsigned short *wordptr;
     unsigned char *byteptr;
 #ifndef __GNUC__
-    unsigned int delay;
+    unsigned short delay;
 #endif
 
     //print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
 #ifdef DEBUGREGS
-    unsigned int i;
+    unsigned short i;
     print("\n");
     print("--->PC ");
     printhex(pc);
@@ -266,9 +270,22 @@ void execute_instruction()
     printhex(pc);
     print(": ");
     print(bytecodenames[memory[pc]]);
-    if (memory[pc] == VM_LDIMM) {
+/* TODO: Should encode immediate mode as one bit of opcode to make this more efficient */
+    if ((memory[pc] == VM_LDIMM) ||
+        (memory[pc] == VM_LDAWORDIMM) ||
+        (memory[pc] == VM_LDABYTEIMM) ||
+        (memory[pc] == VM_LDRWORDIMM) ||
+        (memory[pc] == VM_LDRBYTEIMM) ||
+        (memory[pc] == VM_STAWORDIMM) ||
+        (memory[pc] == VM_STABYTEIMM) ||
+        (memory[pc] == VM_STRWORDIMM) ||
+        (memory[pc] == VM_STRBYTEIMM) ||
+        (memory[pc] == VM_JMPIMM) ||
+        (memory[pc] == VM_BRNCHIMM) ||
+        (memory[pc] == VM_JSRIMM)) {
         printchar(' ');
-        printhex(memory[pc + 1] + 256 * memory[pc + 2]);
+        wordptr = (unsigned short *)&memory[pc + 1];
+        printhex(*wordptr);
         printchar(' ');
     } else {
         print("       ");
@@ -324,10 +341,9 @@ void execute_instruction()
     case VM_LDIMM:             /* Pushes the following 16 bit word to the evaluation stack     */
         ++evalptr;
         CHECKOVERFLOW();
-        /* Note: Word is stored in little endian format! */
-        tempword = memory[++pc];
-        tempword += memory[++pc] * 256;
-        XREG = tempword;
+        wordptr = (unsigned short *)&memory[++pc];
+        ++pc;
+        XREG = *wordptr;
         break;
         /*
          * Absolute addressing:
@@ -342,22 +358,55 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        XREG = memory[XREG] + 256 * memory[XREG + 1];
+        wordptr = (unsigned short *)&memory[XREG];
+        XREG = *wordptr;
+        break;
+    case VM_LDAWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
+        ++evalptr;
+        CHECKOVERFLOW();
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&memory[*wordptr]; /* Pointer to variable */
+        ++pc;
+        XREG = *wordptr;
         break;
     case VM_LDABYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
         CHECKUNDERFLOW(1);
         XREG = memory[XREG];
         break;
-    case VM_STAWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y. */
+    case VM_LDABYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode         */
+        ++evalptr;
+        CHECKOVERFLOW();
+        wordptr = (unsigned short *)&memory[++pc];    /* Pointer to operand */
+        byteptr = (unsigned char *)&memory[*wordptr]; /* Pointer to variable */
+        ++pc;
+        XREG = *byteptr;
+        break;
+    case VM_STAWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
         CHECKUNDERFLOW(2);
-        memory[XREG] = YREG & 0x00ff;
-        memory[XREG + 1] = (YREG & 0xff00) >> 8;
+        wordptr = (unsigned short *)&memory[XREG];
+        *wordptr = YREG;
         evalptr -= 2;
+        break;
+    case VM_STAWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
+        CHECKUNDERFLOW(1);
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&memory[*wordptr]; /* Pointer to variable */
+        ++pc;
+        *wordptr = XREG;
+        --evalptr;
         break;
     case VM_STABYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
         memory[XREG] = YREG;
         evalptr -= 2;
+        break;
+    case VM_STABYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
+        CHECKUNDERFLOW(1);
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        byteptr = (unsigned char *)&memory[*wordptr];  /* Pointer to variable */
+        ++pc;
+        *byteptr = XREG;
+        --evalptr;
         break;
         /*
          * Relative to Frame Pointer addressing:
@@ -376,9 +425,16 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        XREG =
-            memory[(XREG + fp + 1) & 0xffff] +
-            256 * memory[(XREG + fp + 2) & 0xffff];
+        wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
+        XREG = *wordptr;
+        break;
+    case VM_LDRWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
+        ++evalptr;
+        CHECKOVERFLOW();
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+        ++pc;
+        XREG = *wordptr;
         break;
     case VM_LDRBYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
         CHECKUNDERFLOW(1);
@@ -395,16 +451,40 @@ void execute_instruction()
 
         XREG = memory[(XREG + fp + 1) & 0xffff];
         break;
+    case VM_LDRBYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode          */
+        ++evalptr;
+        CHECKOVERFLOW();
+        wordptr = (unsigned short *)&memory[++pc];    /* Pointer to operand */
+        byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+        ++pc;
+        XREG = *byteptr;
+        break;
     case VM_STRWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
-        memory[(XREG + fp + 1) & 0xffff] = YREG & 0x00ff;
-        memory[(XREG + fp + 2) & 0xffff] = (YREG & 0xff00) >> 8;
+        wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
+        *wordptr = YREG;
         evalptr -= 2;
+        break;
+    case VM_STRWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
+        CHECKUNDERFLOW(1);
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+        ++pc;
+        *wordptr = XREG;
+        --evalptr;
         break;
     case VM_STRBYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
         memory[(XREG + fp + 1) & 0xffff] = YREG;
         evalptr -= 2;
+        break;
+    case VM_STRBYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
+        CHECKUNDERFLOW(1);
+        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff];  /* Pointer to variable */
+        ++pc;
+        *byteptr = XREG;
+        --evalptr;
         break;
         /*
          * Manipulate evaluation stack
@@ -450,7 +530,8 @@ void execute_instruction()
         sp += 2;
         ++evalptr;
         CHECKOVERFLOW();
-        XREG = memory[sp - 1] + 256 * memory[sp];
+        wordptr = (unsigned short *)&memory[sp - 1];
+        XREG = *wordptr;
         break;
     case VM_POPBYTE:           /* Pop 8 bit value from call stack, push onto eval stack [X]    */
         CHECKSTACKUNDERFLOW(1);
@@ -467,11 +548,11 @@ void execute_instruction()
         printhex(sp - 1);
         printchar('\n');
 #endif
-
-        memory[sp] = (XREG & 0xff00) >> 8;
+        byteptr = (unsigned char *)&XREG;
+        memory[sp] = *(byteptr + 1);
         --sp;
         CHECKSTACKOVERFLOW();
-        memory[sp] = XREG & 0x00ff;
+        memory[sp] = *byteptr;
         --sp;
         CHECKSTACKOVERFLOW();
         --evalptr;
@@ -506,10 +587,11 @@ void execute_instruction()
 #endif
 
         /* Push old FP to stack */
-        memory[sp] = (fp & 0xff00) >> 8;
+        byteptr = (unsigned char *)&fp;
+        memory[sp] = *(byteptr + 1);
         --sp;
         CHECKSTACKOVERFLOW();
-        memory[sp] = fp & 0x00ff;
+        memory[sp] = *byteptr;
         --sp;
         CHECKSTACKOVERFLOW();
 
@@ -531,7 +613,8 @@ void execute_instruction()
         CHECKSTACKUNDERFLOW(2);
         sp += 2;
         CHECKOVERFLOW();
-        fp = memory[sp - 1] + 256 * memory[sp];
+        wordptr = (unsigned short *)&memory[sp - 1];
+        fp = *wordptr;
 
 #ifdef DEBUGSTACK
         print("  Recovered FP ");
@@ -676,6 +759,11 @@ void execute_instruction()
         pc = XREG;
         --evalptr;
         return;                 /* Do not advance program counter */
+    case VM_JMPIMM:            /* Imm mode - jump to 16 bit word following opcode              */
+        wordptr = (unsigned short *)&memory[++pc];
+        ++pc;
+        pc = *wordptr;
+        return;
     case VM_BRNCH:             /* If Y!= 0, jump to address X.  Drop X, Y.                     */
         CHECKUNDERFLOW(2);
         if (YREG) {
@@ -685,22 +773,46 @@ void execute_instruction()
         }
         evalptr -= 2;
         return;                 /* Do not advance program counter */
+    case VM_BRNCHIMM:          /* Imm mode - if X!=0 branch to 16 bit word following opcode    */
+        wordptr = (unsigned short *)&memory[++pc];
+        ++pc;
+        CHECKUNDERFLOW(1);
+        if (XREG) {
+            pc = *wordptr;
+        } else {
+            ++pc;
+        }
+        --evalptr;
+        return;                 /* Do not advance program counter */
     case VM_JSR:               /* Push PC to call stack.  Jump to address X.  Drop X.          */
         CHECKUNDERFLOW(1);
         byteptr = (unsigned char *) &pc;
-        memory[sp] = *byteptr;
+        memory[sp] = *(byteptr + 1);
         --sp;
         CHECKSTACKOVERFLOW();
-        memory[sp] = *(byteptr + 1);
+        memory[sp] = *byteptr;
         --sp;
         CHECKSTACKOVERFLOW();
         pc = XREG;
         --evalptr;
         return;                 /* Do not advance program counter */
+    case VM_JSRIMM:            /* Imm mode - push PC to calls stack, jump to 16 bit word       */
+        wordptr = (unsigned short *)&memory[++pc];
+        ++pc;
+        byteptr = (unsigned char *) &pc;
+        memory[sp] = *(byteptr + 1);
+        --sp;
+        CHECKSTACKOVERFLOW();
+        memory[sp] = *byteptr;
+        --sp;
+        CHECKSTACKOVERFLOW();
+        pc = *wordptr;
+        return;                 /* Do not advance program counter */
     case VM_RTS:               /* Pop call stack, jump to the address popped.                  */
         CHECKSTACKUNDERFLOW(2);
         ++sp;
-        pc = 256 * memory[sp] + memory[sp + 1];
+        wordptr = (unsigned short *)&memory[sp];
+        pc = *wordptr;
         ++sp;
         break;
         /*
@@ -775,14 +887,25 @@ void execute()
 
 /*
  * Load bytecode into memory[].
- * TODO: This is POSIX-only at the moment.  Need to add CBM support.
  */
 void load()
 {
     FILE *fp;
     char ch;
+    char *p = (char*)&memory[RTPCSTART];
+
     pc = RTPCSTART;
-    fp = fopen("bytecode", "r");
+    do {
+        print("\nBytecode file (CR for default)>");
+        getln(p, 15);
+        if (strlen(p) == 0) {
+            strcpy(p, "bytecode");
+        }
+        print("Loading '");
+        print(p);
+        print("'\n");
+        fp = fopen(p, "r");
+    } while (!fp);
     while (!feof(fp)) {
         ch = fgetc(fp);
         memory[pc++] = ch;
@@ -807,7 +930,7 @@ int main()
     print("(c)Bobbi, 2018\n");
     print("Free Software.\n");
     print("Licenced under GPL.\n\n");
-    print("Loading bytecode: ");
+
     load();
 #ifdef __GNUC__
     print(" Done.\n\n");

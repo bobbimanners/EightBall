@@ -74,14 +74,22 @@ enum bytecode {
     VM_LDIMM,                   /* Pushes the following 16 bit word to the evaluation stack     */
     /* Absolute addressing:                                                                     */
     VM_LDAWORD,                 /* Replaces X with 16 bit value pointed to by X.                */
+    VM_LDAWORDIMM,              /* Imm mode - push 16 bit value pointed to by addr after opcode */
     VM_LDABYTE,                 /* Replaces X with 8 bit value pointed to by X.                 */
+    VM_LDABYTEIMM,              /* Imm mode - push byte pointed to by addr after opcode         */
     VM_STAWORD,                 /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
+    VM_STAWORDIMM,              /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
     VM_STABYTE,                 /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
+    VM_STABYTEIMM,              /* Imm mode - store 8 bit value X in addr after opcode. Drop X. */
     /* Relative to Frame Pointer addressing:                                                    */
     VM_LDRWORD,                 /* Replaces X with 16 bit value pointed to by X.                */
+    VM_LDRWORDIMM,              /* Imm mode - push 16 bit value pointed to by addr after opcode */
     VM_LDRBYTE,                 /* Replaces X with 8 bit value pointed to by X.                 */
+    VM_LDRBYTEIMM,              /* Imm mode - push byte pointed to by addr after opcode         */
     VM_STRWORD,                 /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
+    VM_STRWORDIMM,              /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
     VM_STRBYTE,                 /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
+    VM_STRBYTEIMM,              /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
     /**** Manipulate evaluation stack ***********************************************************/
     VM_SWAP,                    /* Swaps X and Y                                                */
     VM_DUP,                     /* Duplicates X -> X, Y                                         */
@@ -128,8 +136,11 @@ enum bytecode {
     VM_RSH,                     /* X = Y>>X. Y is dropped.                                      */
     /**** Flow control **************************************************************************/
     VM_JMP,                     /* Jump to address X.  Drop X.                                  */
+    VM_JMPIMM,                  /* Imm mode - jump to 16 bit word following opcode              */
     VM_BRNCH,                   /* If Y!= 0, jump to address X.  Drop X, Y.                     */
+    VM_BRNCHIMM,                /* Imm mode - if X!=0 branch to 16 bit word following opcode    */
     VM_JSR,                     /* Push PC to call stack.  Jump to address X.  Drop X.          */
+    VM_JSRIMM,                  /* Imm mode - push PC to call stack, jump to 16 bit word        */
     VM_RTS,                     /* Pop call stack, jump to the address popped.                  */
     /**** Input / Output ************************************************************************/
     VM_PRDEC,                   /* Print 16 bit decimal in X.  Drop X                           */
@@ -141,69 +152,6 @@ enum bytecode {
     VM_KBDLN                    /* Obtain line from keyboard and write to memory pointed to by  */
                                 /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
     /********************************************************************************************/
-};
-
-/* Order must match enum bytecode */
-char *bytecodenames[] = {
-    "END",
-    "LDI",
-    "LDAW",
-    "LDAB",
-    "STAW",
-    "STAB",
-    "LDRW",
-    "LDRB",
-    "STRW",
-    "STRB",
-    "SWP",
-    "DUP",
-    "DUP2",
-    "DRP",
-    "OVER",
-    "PICK",
-    "POPW",
-    "POPB",
-    "PSHW",
-    "PSHB",
-    "DISC",
-    "SPFP",
-    "FPSP",
-    "ATOR",
-    "RTOA",
-    "INC",
-    "DEC",
-    "ADD",
-    "SUB",
-    "MUL",
-    "DIV",
-    "MOD",
-    "NEG",
-    "GT",
-    "GTE",
-    "LT",
-    "LTE",
-    "EQL",
-    "NEQL",
-    "AND",
-    "OR",
-    "NOT",
-    "BAND",
-    "BOR",
-    "BXOR",
-    "BNOT",
-    "LSH",
-    "RSH",
-    "JMP",
-    "BRC",
-    "JSR",
-    "RTS",
-    "PRDEC",
-    "PRHEX",
-    "PRCH",
-    "PRSTR",
-    "PRMSG",
-    "KBDCH",
-    "KBDLN"
 };
 
 #ifdef A2E

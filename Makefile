@@ -10,7 +10,7 @@ CC65BINDIR = $(CC65DIR)/bin
 CC65LIBDIR = $(CC65DIR)/lib
 APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
 
-all: eightball eightballvm 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg eightball.system ebvm.system test.d64 test.dsk
+all: eightball eightballvm disass 8ball20.prg 8ballvm20.prg 8ball64.prg 8ballvm64.prg eightball.system ebvm.system test.d64 test.dsk
 
 clean:
 	rm -f eightball eightballvm *.o 8ball20.* 8ball64.* eightball*.s eightball.system test.d64 *.map *.vice
@@ -23,6 +23,10 @@ eightballvm.o: eightballvm.c eightballutils.h eightballvm.h
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
 	gcc -m32 -Wall -Wextra -g -c -o eightballvm.o eightballvm.c -lm
 
+disass.o: disass.c eightballutils.h eightballvm.h
+	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
+	gcc -m32 -Wall -Wextra -g -c -o disass.o disass.c -lm
+
 eightballutils.o: eightballutils.c eightballutils.h
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
 	gcc -m32 -Wall -Wextra -g -c -o eightballutils.o eightballutils.c -lm
@@ -34,6 +38,10 @@ eightball: eightball.o eightballutils.o
 eightballvm: eightballvm.o eightballutils.o
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
 	gcc -m32 -Wall -Wextra -g -o eightballvm eightballvm.o eightballutils.o -lm
+
+disass: disass.o eightballutils.o
+	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
+	gcc -m32 -Wall -Wextra -g -o disass disass.o eightballutils.o -lm
 
 eightball_20.o: eightball.c eightballutils.h eightballvm.h
 	$(CC65BINDIR)/cc65 -Or -t vic20 -D VIC20 -o eightball_20.s eightball.c
@@ -90,7 +98,7 @@ ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
 	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
 unittest.8bp: unittest.8b
-	tr {} [] <unittest.8b | \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
+	tr {} [] <unittest.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
 
 sieve4.8bp: sieve4.8b
 	tr {} [] <sieve4.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII

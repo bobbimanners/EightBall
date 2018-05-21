@@ -1069,7 +1069,6 @@ unsigned char P()
         if (compile) {
             compiletimelookup = 1;
             if (getintvar(key, idx, &arg, &type, addressmode)) {
-                error(ERR_VAR);
                 return 1;
             }
 
@@ -1080,7 +1079,6 @@ unsigned char P()
         }
 
         if (getintvar(key, idx, &arg, &type, addressmode)) {
-            error(ERR_VAR);
             return 1;
         }
 
@@ -1237,7 +1235,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 
 //#define HEAP2TOP (char*)0x97ff
 #define HEAP2TOP (char*)0xa7ff
-#define HEAP2LIM (char*)0x8a00
+#define HEAP2LIM (char*)0x8900
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
@@ -1258,7 +1256,7 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 #define HEAP1LIM (char*)0xa000
 
 #define HEAP2TOP (char*)0x9fff - 0x0400 /* Leave $800 for the C stack */
-#define HEAP2LIM (char*)0x7100
+#define HEAP2LIM (char*)0x6f00
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
@@ -1282,12 +1280,12 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
 //#define HEAP1LIM (char*)0xa000
 
 //#define HEAP2TOP (char*)0x7fff - 0x0400 /* Leave $400 for the C stack */
-//#define HEAP2LIM (char*)0x7c00  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
+//#define HEAP2LIM (char*)0x7600  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
 //                                 * TRASH THE CODE, WHICH LOADS FROM $1200 UP
 //                                 * USE THE MAPFILE! */
 
 // Everything in BLK5 for now
-// BLK3 is totally full of code!
+// BLK3 is almost totally full of code!
 // Man ... we really need more memory!!
 #define HEAP1TOP (char*)0xbfff
 #define HEAP1LIM (char*)0xb000
@@ -1458,28 +1456,53 @@ int getfreespace2()
 #endif
 
 /*
- * Compiler: Emit bytecode (used for everything except VM_LDIMM)
+ * Compiler: Emit simple one byte code
+ * Used for everything except immediate mode opcodes
  * Stores using codeptr.
  */
 void emit(enum bytecode code)
 {
+/*
     unsigned char c = code;
+*/
 
     *codeptr = code;
     ++codeptr;
 
+/*
     printhex(rtPC);
     print(": ");
     printhexbyte(c);
     print("       : ");
     print(bytecodenames[c]);
     printchar('\n');
+*/
     ++rtPC;
 }
 
 /*
+ * Compiler: Emit opcode and 16 bit word argument
+ * Stores using codeptr.
+ */
+void emit_imm(enum bytecode code, int word)
+{
+    unsigned char *p = (unsigned char *) &word;
+
+    *codeptr = code;
+    ++codeptr;
+    *codeptr = *p;
+    ++codeptr;
+    ++p;
+    *codeptr = *p;
+    ++codeptr;
+    rtPC += 3;
+}
+
+
+/*
  * Compiler: Emit word argument (VM_LDIMM opcode)
  * Stores using codeptr.
+ * TODO: Eventually we can remove this
  */
 void emitldi(int word)
 {
@@ -1494,6 +1517,7 @@ void emitldi(int word)
     *codeptr = *p;
     ++codeptr;
 
+/*
     printhex(rtPC);
     print(": ");
     printhexbyte(c);
@@ -1504,6 +1528,7 @@ void emitldi(int word)
     printchar(' ');
     printhex(word);
     printchar('\n');
+*/
     rtPC += 3;
 }
 
@@ -1517,18 +1542,23 @@ void emitprmsg(void)
     char *p = readbuf;
     emit(VM_PRMSG);
     ++rtPC;
+/*
     printchar('"');
+*/
     while (*p) {
         *codeptr = *p;
         ++rtPC;
+/*
         printchar(*p);
+*/
         ++codeptr;
         ++p;
     }
     *codeptr = 0;
     ++codeptr;
-
+/*
     print("\"\n");
+*/
 }
 
 /*
@@ -1547,10 +1577,12 @@ void emit_fixup(int address, int word)
     ++p;
     *ptr = *p;
 
+/*
     printhex(address);
     print(": ");
     printhex(word);
     print("                 ; Fixup\n");
+*/
 }
 
 /*
@@ -1563,6 +1595,7 @@ void writebytecode()
     unsigned char *p;
     p = (unsigned char *) CODESTART;
     strcpy(readbuf, "bytecode");
+    printchar('\n');
     openfile(1);
     print("...\n");
     while (p < end) {
@@ -2019,8 +2052,7 @@ unsigned char createintvar(char *name,
                 emit((type == TYPE_WORD) ? VM_PSHWORD : VM_PSHBYTE);
                 emitldi(0);
                 emit(VM_NEQL);
-                emitldi(rtPC - 10);
-                emit(VM_BRNCH);
+                emit_imm(VM_BRNCHIMM, rtPC - 10);
                 emit(VM_DROP);
 
                 /*
@@ -2034,9 +2066,7 @@ unsigned char createintvar(char *name,
                 for (i = 0; i < sz; ++i) {
                     if (arrinitmode == STRG_INIT) {
                         emitldi((*txtPtr == '"') ? 0 : *txtPtr);
-                        ((type ==
-                          TYPE_WORD) ? civ_st_rel_word(i) :
-                         civ_st_rel_byte(i));
+                        ((type == TYPE_WORD) ? civ_st_rel_word(i) : civ_st_rel_byte(i));
                         if (*txtPtr == '"') {
                             break;
                         }
@@ -2228,6 +2258,22 @@ void siv_st_rel(unsigned char type)
     ((type == TYPE_WORD) ? emit(VM_STRWORD) : emit(VM_STRBYTE));
 }
 
+/* Factored out to save a few bytes
+ * Used by setintvar() only.
+ */
+void siv_st_abs_imm(unsigned int addr, unsigned char type)
+{
+    emit_imm(((type & 0x0f) == TYPE_WORD) ? VM_STAWORDIMM : VM_STABYTEIMM, addr);
+}
+
+/* Factored out to save a few bytes
+ * Used by setintvar() only.
+ */
+void siv_st_rel_imm(unsigned int addr, unsigned char type)
+{
+    emit_imm(((type & 0x0f) == TYPE_WORD) ? VM_STRWORDIMM : VM_STRBYTEIMM, addr);
+}
+
 /*
  * Set existing integer variable
  * name is the variable name
@@ -2277,11 +2323,10 @@ unsigned char setintvar(char *name, int idx, int value)
              * ABSOLUTE addressing, but locals are addressed RELATIVE
              * to the frame pointer.
              */
-            emitldi(*getptrtoscalarword(ptr));
             if (local && compilingsub) {
-                siv_st_rel(type);
+                siv_st_rel_imm(*getptrtoscalarword(ptr), type);
             } else {
-                siv_st_abs(type);
+                siv_st_abs_imm(*getptrtoscalarword(ptr), type);
             }
         } else {
             if (type == TYPE_WORD) {
@@ -2299,8 +2344,7 @@ unsigned char setintvar(char *name, int idx, int value)
             error(ERR_SUBSCR);
             return 1;
         }
-        bodyptr =
-            (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
+        bodyptr = (void *) *(int *) ((unsigned char *) ptr + sizeof(var_t));
 
         if (compile) {
             /* *** Index is on the stack (X) */
@@ -2358,6 +2402,22 @@ void giv_ld_abs(unsigned char type)
 void giv_ld_rel(unsigned char type)
 {
     (((type & 0x0f) == TYPE_WORD) ? emit(VM_LDRWORD) : emit(VM_LDRBYTE));
+}
+
+/* Factored out to save a few bytes
+ * Used by getintvar() only.
+ */
+void giv_ld_abs_imm(unsigned int addr, unsigned char type)
+{
+    emit_imm(((type & 0x0f) == TYPE_WORD) ? VM_LDAWORDIMM : VM_LDABYTEIMM, addr);
+}
+
+/* Factored out to save a few bytes
+ * Used by getintvar() only.
+ */
+void giv_ld_rel_imm(unsigned int addr, unsigned char type)
+{
+    emit_imm(((type & 0x0f) == TYPE_WORD) ? VM_LDRWORDIMM : VM_LDRBYTEIMM, addr);
 }
 
 /*
@@ -2423,11 +2483,10 @@ unsigned char getintvar(char *name,
                     emit(VM_RTOA);
                 }
             } else {
-                emitldi(*getptrtoscalarword(ptr));
                 if (local && compilingsub) {
-                    giv_ld_rel(*type);
+                    giv_ld_rel_imm(*getptrtoscalarword(ptr), *type);
                 } else {
-                    giv_ld_abs(*type);
+                    giv_ld_abs_imm(*getptrtoscalarword(ptr), *type);
                 }
             }
         } else {
@@ -2565,8 +2624,7 @@ void doif(unsigned char arg)
         /* **** Value of IF expression is on the eval stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);
-        emitldi(0xffff);        /* To be filled in later */
-        emit(VM_BRNCH);
+        emit_imm(VM_BRNCHIMM, 0xffff);        /* To be filled in later */
         push_return(0);
     } else {
         if (skipFlag) {
@@ -2599,8 +2657,7 @@ unsigned char doelse()
          * Code to jump over ELSE block when IF condition is true
          */
         return_stack[returnSP + 1] = rtPC;
-        emitldi(0xffff);        /* To be filled in later */
-        emit(VM_JMP);
+        emit_imm(VM_JMPIMM, 0xffff); /* To be filled in later */
 
         /*
          * Fixup the dummy destination address initialized by
@@ -2841,7 +2898,6 @@ unsigned char assignorcreate(unsigned char mode)
         compiletimelookup = 1;
     }
     if (getintvar(name, i, &j, &type, 1)) {
-        error(ERR_VAR);
         return RET_ERROR;
     }
 
@@ -2933,27 +2989,27 @@ unsigned char doendfor()
         emit(VM_DUP);
         emit(VM_PSHWORD);
 
-        emitldi(return_stack[returnSP + 2]); /* Pointer to loop variable */
+        //emitldi(return_stack[returnSP + 2]); /* Pointer to loop variable */
         if (return_stack[returnSP + 4]) {    /* Rel or abs */
-            emit((type == TYPE_WORD) ? VM_LDRWORD : VM_LDRBYTE);
+            /* Pointer to loop var */
+            emit_imm((type == TYPE_WORD) ? VM_LDRWORDIMM : VM_LDRBYTEIMM, return_stack[returnSP + 2]);
         } else {
-            emit((type == TYPE_WORD) ? VM_LDAWORD : VM_LDABYTE);
+            /* Pointer to loop var */
+            emit_imm((type == TYPE_WORD) ? VM_LDAWORDIMM : VM_LDABYTEIMM, return_stack[returnSP + 2]);
         }
 
         /* Increment and store loop variable */
         emit(VM_INC);
         emit(VM_DUP);
-        emitldi(return_stack[returnSP + 2]);
         if (return_stack[returnSP + 4]) {
-            emit((type == TYPE_WORD) ? VM_STRWORD : VM_STRBYTE);
+            emit_imm((type == TYPE_WORD) ? VM_STRWORDIMM : VM_STRBYTEIMM, return_stack[returnSP + 2]);
         } else {
-            emit((type == TYPE_WORD) ? VM_STAWORD : VM_STABYTE);
+            emit_imm((type == TYPE_WORD) ? VM_STAWORDIMM : VM_STABYTEIMM, return_stack[returnSP + 2]);
         }
 
         /* Compare with loop limit already on eval stack */
         emit(VM_GTE);
-        emitldi(return_stack[returnSP + 3]); /* Branch destination */
-        emit(VM_BRNCH);
+        emit_imm(VM_BRNCHIMM, return_stack[returnSP + 3]); /* Branch destination */
 
         /* Drop loop limit from call stack */
         emit(VM_POPWORD);
@@ -3027,8 +3083,7 @@ void dowhile(char *startTxtPtr, unsigned char arg)
         /* **** Value of WHILE expression is on the eval stack **** */
         emit(VM_NOT);
         push_return(rtPC + 1);  /* Address of dummy 0xffff */
-        emitldi(0xffff);
-        emit(VM_BRNCH);
+        emit_imm(VM_BRNCHIMM, 0xffff);
         push_return(0);         /* Dummy */
     } else {
         if (skipFlag) {
@@ -3062,8 +3117,8 @@ unsigned char doendwhile()
         /*
          * Jump back and re-evaluate the WHILE argument.
          */
-        emitldi(return_stack[returnSP + 3]);
-        emit(VM_JMP);
+        emit_imm(VM_JMPIMM, return_stack[returnSP + 3]);
+
         /*
          * Fixup the dummy destination address initialized by
          * dowhile() to point to the ENDWHILE.
@@ -3166,9 +3221,9 @@ unsigned char dosubr()
 
         compilingsub = 1;
 
-        print("\nsub ");
+        print("\n[");
         print(readbuf);
-        print("\n");
+        print("]");
 
         /*
          * Create entry in subroutine table
@@ -3367,10 +3422,14 @@ unsigned char docall()
         strncpy(s->name, readbuf, SUBRNUMCHARS);
     }
 
-    counter = -1;
+    if (!compile) {
+        counter = -1;
+    }
     while (l) {
         p = l->line;
-        ++counter;
+        if (!compile) {
+            ++counter;
+        }
 
         skipFlag = 0;
 
@@ -3408,6 +3467,7 @@ unsigned char docall()
                  */
                 eatspace();
                 if (expect('(')) {
+                    counter = origcounter;
                     return RET_ERROR;
                 }
 
@@ -3512,10 +3572,12 @@ unsigned char docall()
 
                     /* If end of line, error */
                     if (!(*txtPtr)) {
+                        counter = origcounter;
                         error(ERR_ARG);
                         return RET_ERROR;
                     }
                     if (*txtPtr == ')') {
+                        counter = origcounter;
                         error(ERR_ARG);
                         return RET_ERROR;
                     }
@@ -3529,6 +3591,7 @@ unsigned char docall()
                         }
                         if (eval(0, &arg)) {
                             /* No expression found */
+                            counter = origcounter;
                             error(ERR_ARG);
                             return RET_ERROR;
                         }
@@ -3565,12 +3628,14 @@ unsigned char docall()
                             varslocal = oldvarslocal;
                             array = findintvar(name2, &local);
                             if (!array) {
+                                counter = origcounter;
                                 error(ERR_VAR);
                                 return RET_ERROR;
                             }
                             /* j holds number of dimensions */
                             j = (array->type & 0xf0) >> 4;
                             if (((array->type & 0x0f) != type) || (j == 0)) {
+                                counter = origcounter;
                                 error(ERR_TYPE);
                                 return RET_ERROR;
                             }
@@ -3585,6 +3650,7 @@ unsigned char docall()
                         } else {
                             if (eval(0, &arg)) {
                                 /* No expression found */
+                                counter = origcounter;
                                 error(ERR_ARG);
                                 return RET_ERROR;
                             }
@@ -3614,11 +3680,14 @@ unsigned char docall()
 
                 eatspace();
                 if (expect(')')) {
+                    counter = origcounter;
                     return RET_ERROR;
                 }
 
                 if (compile) {
-                    emitldi(0xffff);
+
+                    emit_imm(VM_JSRIMM, 0xffff);
+
                     /*
                      * Create entry in call table
                      */
@@ -3632,8 +3701,6 @@ unsigned char docall()
                     if (!callsbegin) {
                         callsbegin = s;
                     }
-
-                    emit(VM_JSR);
 
                     /* Caller must drop the arguments
                      * pushed to call stack above */
@@ -3658,8 +3725,8 @@ unsigned char docall()
         }
         l = l->next;
     }
-    error(ERR_NOSUB);
     counter = origcounter;
+    error(ERR_NOSUB);
     return RET_ERROR;
 }
 
@@ -4204,8 +4271,7 @@ unsigned char parseline()
                 emitldi(0x8000);
                 emit(VM_BITAND);
                 emit(VM_NOT);
-                emitldi(rtPC + 9);      /* Jump over printing of '-' */
-                emit(VM_BRNCH);
+                emit_imm(VM_BRNCHIMM, rtPC + 9);      /* Jump over printing of '-' */
                 emitldi('-');
                 emit(VM_PRCH);
                 emit(VM_NEG);
@@ -4315,13 +4381,15 @@ unsigned char parseline()
             callsbegin = callsend = NULL;
             CLEARRTCALLSTACK();
             run(0);
-            emit(VM_END);
-            linksubs();
-            writebytecode();
+            if (compile) {
+                emit(VM_END);
+                linksubs();
+                writebytecode();
+                compile = 0;
+            }
 #ifndef __GNUC__
             CLEARHEAP2TOP();    /* Clear the linkage table */
 #endif
-            compile = 0;
             break;
         case TOK_NEW:
             new();
@@ -4810,6 +4878,9 @@ void run(unsigned char cont)
         current = program;
     }
     while (current && !status) {
+        if (compile) {
+            printchar('.');
+        }
         txtPtr = current->line;
         status = parseline();
         /* parseline() can set current to NULL when return is to
@@ -4827,6 +4898,7 @@ void run(unsigned char cont)
         printchar('\n');
         returnSP = (RETSTACKSZ - 1);
         skipFlag = 0;
+        compile = 0;
         break;
     case 3:
         print("\nBrk at ");
@@ -4834,6 +4906,7 @@ void run(unsigned char cont)
         printchar('\n');
         returnSP = (RETSTACKSZ - 1);
         skipFlag = 0;
+        compile = 0;
         break;
     }
 }
