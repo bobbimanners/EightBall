@@ -8,6 +8,7 @@ Includes:
 - Interpreter
 - Bytecode Compiler
 - Virtual Machine
+- Bytecode Disassembler
 
 # Table of Contents
 - [Intro](#intro)
@@ -202,6 +203,7 @@ This will build executables for Linux using `gcc` and for 6502 targets using `cc
 - `ebvm.system` - Virtual machine runtime for Apple IIe Enhanced and compatibles
 - `8ballvm64.prg` - Virtual machine runtime for C64.
 - `8ballvm20.prg` - Virtual machine runtime for VIC20.
+- `disass` - Bytecode disassembler for Linux.
 - `test.dsk` - Test diskette image for Apple II.
 - `test.d64` - Test diskette image for Commdore C64 and VIC20.
 
@@ -223,6 +225,10 @@ quit
 And finally, to run the bytecode under the VM:
 ```
 $ ./eightballvm
+```
+The bytecode disassember may be used to examine the bytecode in a human-readable format:
+```
+$ ./disass
 ```
 
 ## Running Apple //e Version with MAME
