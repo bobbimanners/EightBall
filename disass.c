@@ -231,18 +231,24 @@ void load()
 {
     FILE *fp;
     char ch;
+    char *p = (char*)&memory[RTPCSTART];
 
     pc = RTPCSTART;
     do {
+#ifndef VIC20
+        /* TODO: Not sure why getln() is blowing up on VIC20 */
         print("\nBytecode file (CR for default)>");
-        getln((char*)memory, 15);
-        if (strlen((char*)memory) == 0) {
-            strcpy((char*)memory, "bytecode");
+        getln(p, 15);
+#else
+        *p = 0;
+#endif
+        if (strlen(p) == 0) {
+            strcpy(p, "bytecode");
         }
         print("Loading '");
-        print((char*)memory);
+        print(p);
         print("'\n");
-        fp = fopen((char*)memory, "r");
+        fp = fopen(p, "r");
     } while (!fp);
     while (!feof(fp)) {
         ch = fgetc(fp);

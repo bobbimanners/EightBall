@@ -37,7 +37,7 @@
 /*                                                                        */
 /**************************************************************************/
 
-#define VERSIONSTR "0.70"
+#define VERSIONSTR "0.71"
 
 void print(char *str);
 
@@ -45,9 +45,7 @@ void printchar(char c);
 
 void printdec(unsigned int val);
 
-#ifdef __GNUC__
 char hexval2char(unsigned char val);
-#endif
 
 void printhex(unsigned int val);
 
