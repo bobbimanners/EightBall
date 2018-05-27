@@ -49,6 +49,17 @@
 #include "eightballutils.h"
 #include "eightballvm.h"
 
+/* Define EXTMEM to enable extended memory support for source code.
+ * Define EXTMEMCODE to enable extended memory support for object code.
+ * Works for Apple //e only at present, but easy to extend.
+ * EXTMEMCODE can only be enabled if EXTMEM is also enabled.
+ * At present EXTMEMCODE is **BROKEN** due to apparent bug in cc65 ext mem driver
+ */ 
+#ifdef A2E
+#define EXTMEM      /* Enable/disable extended memory for source code */
+#undef EXTMEMCODE   /* Enable/disable extended memory for object code */
+#endif
+
 /* Shortcut define CC65 makes code clearer */
 #if defined(VIC20) || defined(C64) || defined(A2E)
 #define CC65
@@ -73,6 +84,7 @@
 #include <conio.h>              /* For clrscr() */
 #include <stdio.h>              /* For fopen(), fclose() */
 #include <peekpoke.h>
+#include <em.h>
 #endif
 #endif
 
@@ -142,9 +154,12 @@ unsigned char parseline(void);
 unsigned char docall(void);
 unsigned char doreturn(int retvalue);
 void emit(enum bytecode code);
-void emitldi(int word);
+void emit_imm(enum bytecode code, int word);
 void emitprmsg(void);
 void linksubs(void);
+void copyfromaux(char *auxptr, unsigned char len);
+
+#define emitldi(x) emit_imm(VM_LDIMM, x)
 
 /*
  ***************************************************************************
@@ -189,12 +204,21 @@ unsigned int rtFP;              /* Frame pointer when compiling        */
 unsigned int rtPCBeforeEval;    /* Stashed copy of program counter     */
 unsigned char *codeptr;         /* Pointer to write VM code to memory  */
 
+#ifdef EXTMEMCODE
+unsigned char *codestart;       /* Start address of VM code in ext mem */
+#endif
+
 /*
  * Represents a line of EightBall code.
+ * The string itself is stored adjacent in regular memory or, if EXTMEM is
+ * defined, in extended memory (aux RAM on Apple //e.)
  */
 struct lineofcode {
     char *line;
     struct lineofcode *next;
+#ifdef EXTMEM
+    unsigned char len;
+#endif
 };
 
 /*
@@ -367,11 +391,20 @@ char *errmsgs[] = {
 /*
  * Error reporting
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void error(unsigned char errcode)
 {
     printchar('?');
     print(errmsgs[errcode - ERR_FIRST]);
+    print(" \"");
+    print(txtPtr);
+    print("\"\n");
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Based on C's precedence rules.  Higher return value means higher precedence.
@@ -1051,6 +1084,11 @@ unsigned char P()
 
                 current = oldcurrent;
                 counter = oldcounter;
+
+#ifdef EXTMEM
+                // Restore embuf, which is trashed by the call to run() above
+                copyfromaux(current->line, current->len);
+#endif
                 /*
                  * Throw away our CALLFRAME.
                  */
@@ -1202,6 +1240,7 @@ unsigned char eval(unsigned char checkNoMore, int *val)
     }
   doret:
     *val = pop_operand_stack();
+
     return 0;
 }
 
@@ -1213,6 +1252,10 @@ unsigned char eval(unsigned char checkNoMore, int *val)
 unsigned char *heap1Ptr;        /* Arena 1: top-down stack */
 unsigned char *heap2PtrTop;     /* Arena 2: top-down stack */
 unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
+
+#ifdef A2E
+unsigned char *auxmemPtrBttm;   /* Auxiliary memory: bottom up heap */
+#endif
 
 #ifdef A2E
 
@@ -1227,18 +1270,27 @@ unsigned char *heap2PtrBttm;    /* Arena 2: bottom-up heap */
  *
  * Heap usage:
  *   Heap 1: Variables
- *   Heap 2: Program text
+ *   Heap 2: Linked list of pointers to lines of program text
+ *   Auxiliary memory is used to store program text
  */
 #define HEAP1TOP (char*)0xb7ff
 //#define HEAP1LIM (char*)0x9800
-#define HEAP1LIM (char*)0xa800
+//#define HEAP1LIM (char*)0xa800
+#define HEAP1LIM (char*)0xa400
 
-//#define HEAP2TOP (char*)0x97ff
-#define HEAP2TOP (char*)0xa7ff
-#define HEAP2LIM (char*)0x8900
+#define HEAP2TOP (char*)(HEAP1LIM - 1)
+#ifdef EXTMEM
+#define HEAP2LIM (char*)0x9000
+#else
+#define HEAP2LIM (char*)0x7f00
+#endif
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
                                   * TRASH THE CODE, WHICH LOADS FROM $2000 UP
                                   * USE THE MAPFILE! */
+
+#define AUXMEMTOP (char*)(192*256)  /* Amount of aux memory available */
+#define AUXMEMBTTM (char*)2048      /* Bottom 2K of aux mem is used for 80 cols */
+
 #elif defined(C64)
 
 /*
@@ -1330,10 +1382,23 @@ unsigned char heap1[HEAP1SZ];
 #endif
 
 /*
+ * Clears aux mem bottom-up heap.  Must call this before using allocauxmem().
+ */
+#ifdef CC65
+#ifdef EXTMEM
+#define CLEARAUXMEM() auxmemPtrBttm = AUXMEMBTTM;
+#endif
+#endif
+
+/*
  * Clears runtime call stack (target system when compiling)
  * Called before compilation begins.
  */
+#ifdef EXTMEMCODE
+#define CLEARRTCALLSTACK() rtSP = RTCALLSTACKTOP; rtFP = rtSP; rtPC = RTPCSTART; codeptr = auxmemPtrBttm; codestart = codeptr;
+#else
 #define CLEARRTCALLSTACK() rtSP = RTCALLSTACKTOP; rtFP = rtSP; rtPC = RTPCSTART; codeptr = CODESTART;
+#endif
 
 /*
  * Allocate bytes on heap 1.
@@ -1341,7 +1406,7 @@ unsigned char heap1[HEAP1SZ];
 void *alloc1(unsigned int bytes)
 {
     if ((heap1Ptr - bytes) < HEAP1LIM) {
-        print("No mem!\n");
+        print("No mem (1)!\n");
         longjmp(jumpbuf, 1);
     }
     heap1Ptr -= bytes;
@@ -1398,13 +1463,13 @@ void *alloc2top(unsigned int bytes)
 #ifdef __GNUC__
     void *p = malloc(bytes);
     if (!p) {
-        print("No mem!\n");
+        print("No mem (2)!\n");
         longjmp(jumpbuf, 1);
     }
     return p;
 #else
     if ((heap2PtrTop - bytes) < heap2PtrBttm) {
-        print("No mem!\n");
+        print("No mem (2)!\n");
         longjmp(jumpbuf, 1);
     }
     heap2PtrTop -= bytes;
@@ -1420,27 +1485,48 @@ void *alloc2bttm(unsigned int bytes)
 #ifdef __GNUC__
     void *p = malloc(bytes);
     if (!p) {
-        print("No mem!\n");
+        print("No mem (2)!\n");
         longjmp(jumpbuf, 1);
     }
     return p;
 #else
+    void *p = heap2PtrBttm;
     if ((heap2PtrBttm + bytes) > heap2PtrTop) {
-        print("No mem!\n");
+        print("No mem (2)!\n");
         longjmp(jumpbuf, 1);
     }
     heap2PtrBttm += bytes;
-    return heap2PtrBttm - bytes;
+    return p;
 #endif
 }
 
 /*
  * Return the total amount of free space on heap 1.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 int getfreespace1()
 {
     return (heap1Ptr - HEAP1LIM + 1);
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+
+/*
+ * Return total amount of space in heap 1.
+ */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
+int gettotalspace1()
+{
+    return (HEAP1TOP - HEAP1LIM + 1);
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Return the total amount of free space on heap 2.
@@ -1449,9 +1535,132 @@ int getfreespace1()
  * bottom.
  */
 #ifdef CC65
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 int getfreespace2()
 {
     return (heap2PtrTop - heap2PtrBttm + 1);
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+#endif
+
+/*
+ * Return total amount of space in heap 2.
+ */
+#ifdef CC65
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
+int gettotalspace2()
+{
+    return (HEAP2TOP - HEAP2LIM + 1);
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+#endif
+
+#ifdef CC65
+#ifdef EXTMEM
+/*
+ * This is used to keep track of allocations in Apple II auxiliary memory.
+ * This memory is accessed using cc65's extended memory (EM) driver.
+ */
+void *allocauxmem(unsigned int bytes) {
+    void *p = auxmemPtrBttm;
+    if ((auxmemPtrBttm + bytes) > AUXMEMTOP) {
+        print("No aux mem!\n");
+        longjmp(jumpbuf, 1);
+    }
+    auxmemPtrBttm += bytes;
+    return p;
+}
+
+/*
+ * Returns the number of bytes of aux mem free
+ */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
+int getfreeauxmem()
+{
+    return (AUXMEMTOP - auxmemPtrBttm + 1);
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+
+/*
+ * Returns total number of usable bytes of aux mem available
+ */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
+int gettotalauxmem()
+{
+    return (AUXMEMTOP - AUXMEMBTTM + 1);
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+
+#endif
+#endif
+
+#ifdef EXTMEM
+struct em_copy emcopy;
+
+char embuf[255];
+char embuf2[255];
+char buf[3];
+
+void copybytetoaux(char *auxptr, char byte) {
+    //char *p = em_map((unsigned int)auxptr >> 8);
+    //*(p + (unsigned char)auxptr) = byte;
+    //em_commit();
+
+    buf[0] = byte;
+    buf[1] = 0;
+    emcopy.buf = buf;
+    emcopy.count = 1;
+    emcopy.offs = (unsigned char)auxptr;
+    emcopy.page = (unsigned int)auxptr >> 8;
+    em_copyto(&emcopy);
+}
+
+void copybytefromaux(char *auxptr) {
+    emcopy.buf = buf;
+    emcopy.count = 1;
+    emcopy.offs = (unsigned char)auxptr;
+    emcopy.page = (unsigned int)auxptr >> 8;
+    em_copyfrom(&emcopy);
+}
+
+void copytoaux(char *auxptr, char *line) {
+    emcopy.buf = line;
+    emcopy.count = strlen(line) + 1;
+    emcopy.offs = (unsigned char)auxptr;
+    emcopy.page = (unsigned int)auxptr >> 8;
+    em_copyto(&emcopy);
+}
+
+void copyfromaux(char *auxptr, unsigned char len) {
+    emcopy.buf = embuf;
+    emcopy.count = len + 1; /* Remember the NULL */
+    emcopy.offs = (unsigned char)auxptr;
+    emcopy.page = (unsigned int)auxptr >> 8;
+    em_copyfrom(&emcopy);
+}
+
+void copyfromaux2(char *auxptr, unsigned char len) {
+    emcopy.buf = embuf2;
+    emcopy.count = len + 1; /* Remember the NULL */
+    emcopy.offs = (unsigned char)auxptr;
+    emcopy.page = (unsigned int)auxptr >> 8;
+    em_copyfrom(&emcopy);
 }
 #endif
 
@@ -1460,14 +1669,20 @@ int getfreespace2()
  * Used for everything except immediate mode opcodes
  * Stores using codeptr.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void emit(enum bytecode code)
 {
 /*
     unsigned char c = code;
 */
 
-    *codeptr = code;
-    ++codeptr;
+#ifdef EXTMEMCODE
+    copybytetoaux(codeptr++, code);
+#else
+    *codeptr++ = code;
+#endif
 
 /*
     printhex(rtPC);
@@ -1479,103 +1694,90 @@ void emit(enum bytecode code)
 */
     ++rtPC;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Compiler: Emit opcode and 16 bit word argument
  * Stores using codeptr.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void emit_imm(enum bytecode code, int word)
 {
     unsigned char *p = (unsigned char *) &word;
 
-    *codeptr = code;
-    ++codeptr;
-    *codeptr = *p;
-    ++codeptr;
-    ++p;
-    *codeptr = *p;
-    ++codeptr;
+#ifdef EXTMEMCODE
+    copybytetoaux(codeptr++, code);
+    copybytetoaux(codeptr++, *p++);
+    copybytetoaux(codeptr++, *p);
+#else
+    *codeptr++ = code;
+    *codeptr++ = *p++;
+    *codeptr++ = *p;
+#endif
     rtPC += 3;
 }
-
-
-/*
- * Compiler: Emit word argument (VM_LDIMM opcode)
- * Stores using codeptr.
- * TODO: Eventually we can remove this
- */
-void emitldi(int word)
-{
-    unsigned char c = VM_LDIMM;
-    unsigned char *p = (unsigned char *) &word;
-
-    *codeptr = c;
-    ++codeptr;
-    *codeptr = *p;
-    ++codeptr;
-    ++p;
-    *codeptr = *p;
-    ++codeptr;
-
-/*
-    printhex(rtPC);
-    print(": ");
-    printhexbyte(c);
-    printchar(' ');
-    printhex(word);
-    print(" : ");
-    print(bytecodenames[c]);
-    printchar(' ');
-    printhex(word);
-    printchar('\n');
-*/
-    rtPC += 3;
-}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Compiler: Emit PRMSG and string argument.
  * String is in readbuf
  * String is zero-terminated.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void emitprmsg(void)
 {
     char *p = readbuf;
+#ifdef EXTMEMCODE
+    copybytetoaux(codeptr++, VM_PRMSG);
+    ++rtPC;
+    while (*p) {
+        copybytetoaux(codeptr++, *p++);
+        ++rtPC;
+    }
+    copybytetoaux(codeptr++, 0);
+#else
     emit(VM_PRMSG);
     ++rtPC;
-/*
-    printchar('"');
-*/
     while (*p) {
-        *codeptr = *p;
+        *codeptr++ = *p++;
         ++rtPC;
-/*
-        printchar(*p);
-*/
-        ++codeptr;
-        ++p;
     }
-    *codeptr = 0;
-    ++codeptr;
-/*
-    print("\"\n");
-*/
+    *codeptr++ = 0;
+#endif
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Emit fixup for address.
  * The compiler uses this to go back and fill in the address for forward
  * jumps, once it discovers where the destination is.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void emit_fixup(int address, int word)
 {
-    unsigned char *ptr =
-        (unsigned char *) (CODESTART + address - RTPCSTART);
+#ifdef EXTMEMCODE
+    unsigned char *ptr = (unsigned char *) (codestart + address - RTPCSTART);
     unsigned char *p = (unsigned char *) &word;
-
+    copybytetoaux(ptr++, *p++);
+    copybytetoaux(ptr, *p);
+#else
+    unsigned char *ptr = (unsigned char *) (CODESTART + address - RTPCSTART);
+    unsigned char *p = (unsigned char *) &word;
+    *ptr++ = *p++;
     *ptr = *p;
-    ++ptr;
-    ++p;
-    *ptr = *p;
+#endif
 
 /*
     printhex(address);
@@ -1584,25 +1786,42 @@ void emit_fixup(int address, int word)
     print("                 ; Fixup\n");
 */
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Write code to file.
  * Call this after compilation is done.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void writebytecode()
 {
     unsigned char *end = codeptr;
     unsigned char *p;
+    unsigned char *q;
+#ifdef EXTMEMCODE
+    p = (unsigned char *) codestart;
+#else
     p = (unsigned char *) CODESTART;
+#endif
     strcpy(readbuf, "bytecode");
     printchar('\n');
     openfile(1);
     print("...\n");
     while (p < end) {
-#ifdef CBM
-        cbm_write(1, p, 1);
+#ifdef EXTMEMCODE
+        copybytefromaux(p);
+        q = buf;
 #else
-        fwrite(p, 1, 1, fd);
+        q = p;
+#endif
+#ifdef CBM
+        cbm_write(1, q, 1);
+#else
+        fwrite(q, 1, 1, fd);
 #endif
         ++p;
     }
@@ -1612,6 +1831,9 @@ void writebytecode()
     fclose(fd);
 #endif
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Values:
@@ -1626,7 +1848,7 @@ unsigned char editmode = 0;
  */
 struct lineofcode *program = NULL;
 
-/**
+/*
  * skipFlag is set to one when we enter a body of code which we are not
  * executing (for example because a while loop condition was false.)  When
  * skipFlag is one, the parser will only process certain loop control tokens
@@ -1636,39 +1858,56 @@ unsigned char skipFlag;
 
 /*
  * Append a line to the program
- * If current is set, then the new line will be appended after current
+ * The new line will be appended after current
  * and current will be moved forward to point to the newly added line.
- * If current is NULL, then this is the first line of a new program
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void appendline(char *line)
 {
     struct lineofcode *loc = alloc2bttm(sizeof(struct lineofcode));
 
+#ifdef EXTMEM
+    loc->line = allocauxmem(sizeof(char) * strlen(line) + 1);
+    copytoaux(loc->line, line);
+    loc->len = strlen(line);
+#else
     loc->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(loc->line, line);
-    if (!current) {
-        loc->next = NULL;
-        new();
-        program = current = loc;
-    } else {
-        loc->next = current->next;
-        current->next = loc;
-        current = loc;
-    }
+#endif
+    loc->next = current->next;
+    current->next = loc;
+    current = loc;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Insert new first line (special case)
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void insertfirstline(char *line)
 {
     struct lineofcode *loc = alloc2bttm(sizeof(struct lineofcode));
 
+#ifdef EXTMEM
+    loc->line = allocauxmem(sizeof(char) * strlen(line) + 1);
+    copytoaux(loc->line, line);
+    loc->len = strlen(line);
+#else
     loc->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(loc->line, line);
+#endif
     loc->next = program;
     program = loc;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Make current point to the line with number linenum
@@ -1691,6 +1930,9 @@ void findline(int linenum)
 /*
  * Delete line(s)
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void deleteline(int startline, int endline)
 {
     int linesToDel = endline - startline + 1;
@@ -1721,22 +1963,40 @@ void deleteline(int startline, int endline)
         ++counter;
     }
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Replace line pointed to by current
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void changeline(char *line)
 {
 #ifdef __GNUC__
     free(current->line);
 #endif
+
+#ifdef EXTMEM
+    current->line = allocauxmem(sizeof(char) * (strlen(line) + 1));
+    copytoaux(current->line, line);
+#else
     current->line = alloc2bttm(sizeof(char) * (strlen(line) + 1));
     strcpy(current->line, line);
+#endif
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Delete program, free memory.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void new()
 {
 #ifdef __GNUC__
@@ -1753,9 +2013,16 @@ void new()
     /* No need to iterate and free them all, just dump the heap */
     CLEARHEAP2TOP();
     CLEARHEAP2BTTM();
+#ifdef EXTMEM
+    CLEARAUXMEM();
+#endif
 #endif
     program = NULL;
+    current = NULL;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /* 0 is the top level, 1 is first level sub call etc. */
 int calllevel;
@@ -1860,6 +2127,9 @@ enum types {
 /*
  * Print all variables as a table
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void printvars()
 {
     var_t *v = varsbegin;
@@ -1890,6 +2160,9 @@ void printvars()
         v = v->next;
     }
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /* Factored out to save a few bytes
  * Used by createintvar() only.
@@ -2953,6 +3226,11 @@ void backtotop(int linenum, char *oldTxtPtr)
         }
     }
 
+#ifdef EXTMEM
+    copyfromaux(current->line, current->len);
+#endif
+
+    /* This should also work with extended memory */
     txtPtr = oldTxtPtr;
 }
 
@@ -3426,7 +3704,12 @@ unsigned char docall()
         counter = -1;
     }
     while (l) {
+#ifdef EXTMEM
+        copyfromaux2(l->line, l->len);
+        p = embuf2;
+#else
         p = l->line;
+#endif
         if (!compile) {
             ++counter;
         }
@@ -3595,6 +3878,10 @@ unsigned char docall()
                             error(ERR_ARG);
                             return RET_ERROR;
                         }
+#ifdef EXTMEM
+                        // Recover embuf2, which has been trashed by eval() above
+                        copyfromaux2(l->line, l->len);
+#endif
                         if (compile) {
                             if (type == TYPE_WORD) {
                                 emit(VM_PSHWORD);
@@ -3718,7 +4005,12 @@ unsigned char docall()
                      */
                     current = l->next;
                     ++counter;
+#ifdef EXTMEM
+                    copyfromaux(current->line, current->len);
+                    txtPtr = embuf;
+#else
                     txtPtr = current->line;
+#endif
                 }
                 return RET_SUCCESS;
             }
@@ -4043,6 +4335,60 @@ unsigned char checkNoMoreArgs()
     }
     return 0;
 }
+
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
+void showfreespace() {
+    print("free:\n");
+#ifdef CC65
+#ifdef EXTMEM
+    print("Blk1: ");
+    printdec(getfreespace1());
+    print(" / ");
+    printdec(gettotalspace1());
+#ifdef EXTMEMCODE
+    print(" vars\n");
+#else
+    print(" bytecode,vars\n");
+#endif
+    print("Blk2: ");
+    printdec(getfreespace2());
+    print(" / ");
+    printdec(gettotalspace2());
+    print(" lists,linkage\n");
+    print("Aux:  ");
+    printdec(getfreeauxmem());
+    print(" / ");
+    printdec(gettotalauxmem());
+#ifdef EXTMEMCODE
+    print(" source,bytecode");
+#else
+    print(" source");
+#endif
+#else
+    print("Blk1: ");
+    printdec(getfreespace1());
+    print(" / ");
+    printdec(gettotalspace1());
+    print(" bytecode,vars\n");
+    print("Blk2: ");
+    printdec(getfreespace2());
+    print(" / ");
+    printdec(gettotalspace2());
+    print(" source,linkage");
+#endif
+#else
+    printdec(getfreespace1());
+    print(" / ");
+    printdec(gettotalspace1());
+    print(" bytecode,vars\n");
+    print("unlimited source,linkage");
+#endif
+}
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /* Parse a line from the input buffer
  * Handles statements
@@ -4485,16 +4831,7 @@ unsigned char parseline()
 #endif
             break;
         case TOK_FREE:
-#ifdef CC65
-            printdec(getfreespace1());
-            print(" vars, ");
-            printdec(getfreespace2());
-            print(" code\n");
-#else
-            printdec(getfreespace1());
-            print(" vars, ");
-            print("code space pretty much unlimited!\n");
-#endif
+            showfreespace();
             break;
         case TOK_POKEWORD:
             eatspace();
@@ -4621,6 +4958,9 @@ unsigned char parseline()
  * If writemode = 0 then it opens file for reading, otherwise for writing.
  * Returns 0 if OK, 1 if error.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 unsigned char openfile(unsigned char writemode)
 {
     char *readPtr = readbuf;
@@ -4667,6 +5007,9 @@ unsigned char openfile(unsigned char writemode)
     return 0;
 
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Load program from file.
@@ -4674,6 +5017,9 @@ unsigned char openfile(unsigned char writemode)
  * Returns 0 if OK, 1 if error.
  * NOTE: Trashes lnbuf !!
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 unsigned char readfile()
 {
     unsigned char i;
@@ -4754,12 +5100,11 @@ unsigned char readfile()
         }
 
         if (foundEOL == 1) {
-            txtPtr = lnbuf;
             if (!count) {
-                insertfirstline(txtPtr);
+                insertfirstline(lnbuf);
                 findline(1);
             } else {
-                appendline(txtPtr);
+                appendline(lnbuf);
             }
             ++count;
         } else {
@@ -4797,12 +5142,18 @@ unsigned char readfile()
     print(" lines\n");
     return 0;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Save program to file.
  * Expects filename in readbuf.
  * Returns 0 if OK, 1 if error.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 unsigned char writefile()
 {
     unsigned int bytes;
@@ -4815,12 +5166,23 @@ unsigned char writefile()
     current = program;
     while (current) {
         index = 0;
+
+#ifdef EXTMEM
+        copyfromaux(current->line, current->len);
+        for (index = 0; index < strlen(embuf); ++index) {
+#else
         for (index = 0; index < strlen(current->line); ++index) {
+#endif
+
 #ifdef CBM
             /* Commodore */
             bytes = cbm_write(1, current->line + index, 1);
+
+#elif defined(EXTMEM)
+            /* Apple II, using extended memory driver */
+            bytes = fwrite(embuf + index, 1, 1, fd);
 #else
-            /* POSIX */
+            /* POSIX and Apple II without extended memory */
             bytes = fwrite(current->line + index, 1, 1, fd);
 #endif
             if (!bytes) {
@@ -4864,6 +5226,10 @@ unsigned char writefile()
     error(ERR_FILE);
     return 1;
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
+
 
 void run(unsigned char cont)
 {
@@ -4881,7 +5247,12 @@ void run(unsigned char cont)
         if (compile) {
             printchar('.');
         }
+#ifdef EXTMEM
+        copyfromaux(current->line, current->len);
+        txtPtr = embuf;
+#else
         txtPtr = current->line;
+#endif
         status = parseline();
         /* parseline() can set current to NULL when return is to
          * immediate mode */
@@ -4916,6 +5287,9 @@ void run(unsigned char cont)
  * The subroutine definitions are in the list that starts with subsbegin.
  * The subroutine calls are in the list that starts with callsbegin.
  */
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void linksubs()
 {
     sub_t *call;
@@ -4935,7 +5309,13 @@ void linksubs()
         call = call->next;
     }
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
+#ifdef A2E
+#pragma code-name (push, "LC")
+#endif
 void list(unsigned int startline, unsigned int endline)
 {
     unsigned int count = 1;
@@ -4957,13 +5337,22 @@ void list(unsigned int startline, unsigned int endline)
 #elif defined(A2E)
             revers(0);
 #endif
+
+#ifdef EXTMEM
+            copyfromaux(current->line, current->len);
+            print(embuf);
+#else
             print(current->line);
+#endif
             printchar('\n');
         }
         ++count;
         current = current->next;
     }
 }
+#ifdef A2E
+#pragma code-name (pop)
+#endif
 
 /*
  * Clear the operator and operand stacks prior to evaluating expression.
@@ -4985,6 +5374,9 @@ void
 main()
 {
 
+#ifdef EXTMEM
+    unsigned char emhandle;
+#endif
 #ifdef A2E
     clrscr();
 #elif defined(VIC20)
@@ -5019,6 +5411,13 @@ main()
     print("      ***    EIGHTBALL V" VERSIONSTR "   ***     \n");
     print("      ***    (C)BOBBI, 2018    ***     \n\n");
     revers(0);
+#ifdef EXTMEM
+    emhandle = em_load_driver("a2e.auxmem.emd");
+    if (emhandle != EM_ERR_OK) {
+        print("Unable to load EM driver a2e.auxmem.emd\n");
+        return;
+    }
+#endif
 #elif defined(C64)
     print("      ***    EightBall v" VERSIONSTR "   ***      ");
     print("      ***    (c)Bobbi, 2018    ***      \n\n");
@@ -5041,7 +5440,13 @@ main()
 #ifdef CC65
     CLEARHEAP2TOP();
     CLEARHEAP2BTTM();
+#ifdef EXTMEM
+    CLEARAUXMEM();
 #endif
+#endif
+
+    showfreespace();
+    print("\n\n");
 
     /* Warm reset goes here */
     if (setjmp(jumpbuf) == 1) {

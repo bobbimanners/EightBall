@@ -284,5 +284,8 @@ int main()
     printchar(147);             /* Clear */
 #endif
     disassemble();
+#ifdef A2E
+    cgetc();
+#endif
     return 0;
 }

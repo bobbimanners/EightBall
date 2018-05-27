@@ -1,0 +1,28 @@
+word counter=0
+word fails=0
+
+call expect(sqr(10)==100)
+end
+
+sub sqr(word x)
+  return x*x
+endsub
+
+sub expect(byte b)
+  pr.dec counter
+  pr.msg ": "
+  counter=counter+1
+  if b
+     pr.msg "  Pass "
+  else
+     pr.msg "  FAIL "
+     fails=fails+1
+  endif
+  pr.nl
+  return 0
+endsub
+
+sub xxxxxx(word qqq)
+ return qqq
+endsub
+
