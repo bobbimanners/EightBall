@@ -131,7 +131,6 @@ eightball.system: eightball_a2e.o eightballutils_a2e.o
 ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
 	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
-#
 disass.system: disass_a2e.o eightballutils_a2e.o
 	$(CC65BINDIR)/ld65 -m disassa2e.map -o disass.system -C apple2enh-system.cfg disass_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
@@ -146,11 +145,14 @@ unittest.8bp: unittest.8b
 sieve4.8bp: sieve4.8b
 	tr {} [] <sieve4.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII
 
+tetris.8bp: tetris.8b
+	tr {} [] <tetris.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > tetris.8bp # ASCII -> PETSCII
+
 #
 # Diskette images
 #
 
-test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg unittest.8bp sieve4.8bp
+test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg unittest.8bp sieve4.8bp tetris.8bp
 	c1541 -format eb,00 d64 test.d64
 	c1541 -attach test.d64 -write 8ball20.prg
 	c1541 -attach test.d64 -write 8ballvm20.prg
@@ -160,20 +162,25 @@ test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disas
 	c1541 -attach test.d64 -write disass64.prg
 	c1541 -attach test.d64 -write unittest.8bp unit.8b,s
 	c1541 -attach test.d64 -write sieve4.8bp sieve4.8b,s
+	c1541 -attach test.d64 -write tetris.8bp tetris.8b,s
 
 test.dsk: eightball.system ebvm.system disass.system sieve4.8b tetris.8b bytecode
 	java -jar $(APPLECMDR) -d test.dsk e8ball.system
 	java -jar $(APPLECMDR) -d test.dsk ebvm.system
 	java -jar $(APPLECMDR) -d test.dsk disass.system
 	java -jar $(APPLECMDR) -d test.dsk sieve4.8b
+	java -jar $(APPLECMDR) -d test.dsk unittest.8b
 	java -jar $(APPLECMDR) -d test.dsk tetris.8b
 	java -jar $(APPLECMDR) -d test.dsk bytecode
+	java -jar $(APPLECMDR) -d test.dsk a2e.auxmem.emd
 	java -jar $(APPLECMDR) -p test.dsk e8ball.system sys <eightball.system 
 	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
 	java -jar $(APPLECMDR) -p test.dsk disass.system sys <disass.system 
 	java -jar $(APPLECMDR) -p test.dsk sieve4.8b txt <sieve4.8b
+	java -jar $(APPLECMDR) -p test.dsk unittest.8b txt <unittest.8b
 	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <tetris.8b
 	java -jar $(APPLECMDR) -p test.dsk bytecode txt <bytecode
+	java -jar $(APPLECMDR) -p test.dsk a2e.auxmem.emd txt <a2e.auxmem.emd
 
 #
 # Run emulator with test diskette images
@@ -187,5 +194,4 @@ x64: test.d64
 
 mame: test.dsk
 	mame -w apple2ee -sl6 diskii -floppydisk1 test.dsk
-
 
