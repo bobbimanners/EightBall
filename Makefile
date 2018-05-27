@@ -164,14 +164,13 @@ test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disas
 	c1541 -attach test.d64 -write sieve4.8bp sieve4.8b,s
 	c1541 -attach test.d64 -write tetris.8bp tetris.8b,s
 
-test.dsk: eightball.system ebvm.system disass.system sieve4.8b tetris.8b bytecode
+test.dsk: eightball.system ebvm.system disass.system sieve4.8b tetris.8b
 	java -jar $(APPLECMDR) -d test.dsk e8ball.system
 	java -jar $(APPLECMDR) -d test.dsk ebvm.system
 	java -jar $(APPLECMDR) -d test.dsk disass.system
 	java -jar $(APPLECMDR) -d test.dsk sieve4.8b
 	java -jar $(APPLECMDR) -d test.dsk unittest.8b
 	java -jar $(APPLECMDR) -d test.dsk tetris.8b
-	java -jar $(APPLECMDR) -d test.dsk bytecode
 	java -jar $(APPLECMDR) -d test.dsk a2e.auxmem.emd
 	java -jar $(APPLECMDR) -p test.dsk e8ball.system sys <eightball.system 
 	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
@@ -179,8 +178,7 @@ test.dsk: eightball.system ebvm.system disass.system sieve4.8b tetris.8b bytecod
 	java -jar $(APPLECMDR) -p test.dsk sieve4.8b txt <sieve4.8b
 	java -jar $(APPLECMDR) -p test.dsk unittest.8b txt <unittest.8b
 	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <tetris.8b
-	java -jar $(APPLECMDR) -p test.dsk bytecode txt <bytecode
-	java -jar $(APPLECMDR) -p test.dsk a2e.auxmem.emd txt <a2e.auxmem.emd
+	java -jar $(APPLECMDR) -p test.dsk a2e.auxmem.emd txt <cc65/a2e.auxmem.emd
 
 #
 # Run emulator with test diskette images
