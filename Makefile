@@ -10,10 +10,10 @@ CC65BINDIR = $(CC65DIR)/bin
 CC65LIBDIR = $(CC65DIR)/lib
 APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
 
-all: eightball eightballvm disass 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg eightball.system ebvm.system disass.system test.d64 test.dsk
+all: bin/eightball bin/eightballvm bin/disass bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bin/8ball64.prg bin/8ballvm64.prg bin/disass64.prg bin/eightball.system bin/ebvm.system bin/disass.system eightball.d64 eightball.dsk
 
 clean:
-	rm -f eightball eightballvm disass *.s *.o *.prg *.system test.d64 *.map *.vice 8b-scripts/*.8bp bytecode
+	rm -f *.s *.o *.map *.vice bin/eightball bin/eightballvm bin/disass bin/*.prg bin/*.system 8b-scripts/*.8bp bytecode eightball.d64
 
 #
 # Linux target
@@ -35,17 +35,17 @@ eightballutils.o: eightballutils.c eightballutils.h
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
 	gcc -m32 -Wall -Wextra -g -c -o eightballutils.o eightballutils.c -lm
 
-eightball: eightball.o eightballutils.o
+bin/eightball: eightball.o eightballutils.o
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
-	gcc -m32 -Wall -Wextra -g -o eightball eightball.o eightballutils.o -lm
+	gcc -m32 -Wall -Wextra -g -o bin/eightball eightball.o eightballutils.o -lm
 
-eightballvm: eightballvm.o eightballutils.o
+bin/eightballvm: eightballvm.o eightballutils.o
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
-	gcc -m32 -Wall -Wextra -g -o eightballvm eightballvm.o eightballutils.o -lm
+	gcc -m32 -Wall -Wextra -g -o bin/eightballvm eightballvm.o eightballutils.o -lm
 
-disass: disass.o eightballutils.o
+bin/disass: disass.o eightballutils.o
 	# 32 bit so sizeof(int*) = sizeof(int) [I am lazy]
-	gcc -m32 -Wall -Wextra -g -o disass disass.o eightballutils.o -lm
+	gcc -m32 -Wall -Wextra -g -o bin/disass disass.o eightballutils.o -lm
 
 #
 # VIC20 target
@@ -67,14 +67,14 @@ eightballutils_20.o: eightballutils.c eightballutils.h
 	$(CC65BINDIR)/cc65 -Or -t vic20 -D VIC20 -o eightballutils_20.s eightballutils.c
 	$(CC65BINDIR)/ca65 -t vic20 eightballutils_20.s
 
-8ball20.prg: eightball_20.o eightballutils_20.o
-	$(CC65BINDIR)/ld65 -m 8ball20.map -o 8ball20.prg -Ln 8ball20.vice -C vic20-32k.cfg eightball_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
+bin/8ball20.prg: eightball_20.o eightballutils_20.o
+	$(CC65BINDIR)/ld65 -m 8ball20.map -o bin/8ball20.prg -Ln 8ball20.vice -C vic20-32k.cfg eightball_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
 
-8ballvm20.prg: eightballvm_20.o eightballutils_20.o
-	$(CC65BINDIR)/ld65 -m 8ballvm20.map -o 8ballvm20.prg -Ln 8ballvm20.vice -C vic20-32k.cfg eightballvm_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
+bin/8ballvm20.prg: eightballvm_20.o eightballutils_20.o
+	$(CC65BINDIR)/ld65 -m 8ballvm20.map -o bin/8ballvm20.prg -Ln 8ballvm20.vice -C vic20-32k.cfg eightballvm_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
 
-disass20.prg: disass_20.o eightballutils_20.o
-	$(CC65BINDIR)/ld65 -m disass20.map -o disass20.prg -Ln disass20.vice -C vic20-32k.cfg disass_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
+bin/disass20.prg: disass_20.o eightballutils_20.o
+	$(CC65BINDIR)/ld65 -m disass20.map -o bin/disass20.prg -Ln disass20.vice -C vic20-32k.cfg disass_20.o eightballutils_20.o $(CC65LIBDIR)/vic20.lib
 
 #
 # C64 target
@@ -96,14 +96,14 @@ eightballutils_64.o: eightballutils.c eightballutils.h
 	$(CC65BINDIR)/cc65 -Or -t c64 -D C64 -o eightballutils_64.s eightballutils.c
 	$(CC65BINDIR)/ca65 -t c64 eightballutils_64.s
 
-8ball64.prg: eightball_64.o eightballutils_64.o
-	$(CC65BINDIR)/ld65 -m 8ball64.map -o 8ball64.prg -Ln 8ball64.vice -C c64.cfg eightball_64.o eightballutils_64.o $(CC65LIBDIR)/c64.lib
+bin/8ball64.prg: eightball_64.o eightballutils_64.o
+	$(CC65BINDIR)/ld65 -m 8ball64.map -o bin/8ball64.prg -Ln 8ball64.vice -C c64.cfg eightball_64.o eightballutils_64.o $(CC65LIBDIR)/c64.lib
 
-8ballvm64.prg: eightballvm_64.o eightballutils_64.o
-	$(CC65BINDIR)/ld65 -m 8ballvm64.map -o 8ballvm64.prg -Ln 8ballvm64.vice -C c64.cfg eightballvm_64.o eightballutils_64.o $(CC54LIBDIR)/c64.lib
+bin/8ballvm64.prg: eightballvm_64.o eightballutils_64.o
+	$(CC65BINDIR)/ld65 -m 8ballvm64.map -o bin/8ballvm64.prg -Ln 8ballvm64.vice -C c64.cfg eightballvm_64.o eightballutils_64.o $(CC54LIBDIR)/c64.lib
 
-disass64.prg: disass_64.o eightballutils_64.o
-	$(CC65BINDIR)/ld65 -m disass64.map -o disass64.prg -Ln disass64.vice -C c64.cfg disass_64.o eightballutils_64.o $(CC65LIBDIR)/c64.lib
+bin/disass64.prg: disass_64.o eightballutils_64.o
+	$(CC65BINDIR)/ld65 -m disass64.map -o bin/disass64.prg -Ln disass64.vice -C c64.cfg disass_64.o eightballutils_64.o $(CC65LIBDIR)/c64.lib
 
 #
 # Apple II target
@@ -125,14 +125,14 @@ eightballutils_a2e.o: eightballutils.c eightballutils.h
 	$(CC65BINDIR)/cc65 -Or -t apple2enh -D A2E -o eightballutils_a2e.s eightballutils.c
 	$(CC65BINDIR)/ca65 -t apple2enh eightballutils_a2e.s
 
-eightball.system: eightball_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m 8balla2e.map -o eightball.system -C apple2enh-system.cfg eightball_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/eightball.system: eightball_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m 8balla2e.map -o bin/eightball.system -C apple2enh-system.cfg eightball_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
-ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o bin/ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
-disass.system: disass_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m disassa2e.map -o disass.system -C apple2enh-system.cfg disass_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/disass.system: disass_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m disassa2e.map -o bin/disass.system -C apple2enh-system.cfg disass_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
 
 
 #
@@ -152,44 +152,44 @@ disass.system: disass_a2e.o eightballutils_a2e.o
 # Diskette images
 #
 
-test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg 8b-scripts/unittest.8bp 8b-scripts/sieve.8bp 8b-scripts/tetris.8bp
-	c1541 -format eb,00 d64 test.d64
-	c1541 -attach test.d64 -write 8ball20.prg
-	c1541 -attach test.d64 -write 8ballvm20.prg
-	c1541 -attach test.d64 -write disass20.prg
-	c1541 -attach test.d64 -write 8ball64.prg
-	c1541 -attach test.d64 -write 8ballvm64.prg
-	c1541 -attach test.d64 -write disass64.prg
-	c1541 -attach test.d64 -write 8b-scripts/unittest.8bp unittest.8b,s
-	c1541 -attach test.d64 -write 8b-scripts/sieve.8bp sieve.8b,s
-	c1541 -attach test.d64 -write 8b-scripts/tetris.8bp tetris.8b,s
+eightball.d64: bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bin/8ball64.prg bin/8ballvm64.prg bin/disass64.prg 8b-scripts/unittest.8bp 8b-scripts/sieve.8bp 8b-scripts/tetris.8bp
+	c1541 -format eb,00 d64 eightball.d64
+	c1541 -attach eightball.d64 -write bin/8ball20.prg
+	c1541 -attach eightball.d64 -write bin/8ballvm20.prg
+	c1541 -attach eightball.d64 -write bin/disass20.prg
+	c1541 -attach eightball.d64 -write bin/8ball64.prg
+	c1541 -attach eightball.d64 -write bin/8ballvm64.prg
+	c1541 -attach eightball.d64 -write bin/disass64.prg
+	c1541 -attach eightball.d64 -write 8b-scripts/unittest.8bp unittest.8b,s
+	c1541 -attach eightball.d64 -write 8b-scripts/sieve.8bp sieve.8b,s
+	c1541 -attach eightball.d64 -write 8b-scripts/tetris.8bp tetris.8b,s
 
-test.dsk: eightball.system ebvm.system disass.system 8b-scripts/sieve.8b 8b-scripts/unittest.8b 8b-scripts/tetris.8b
-	java -jar $(APPLECMDR) -d test.dsk e8ball.system
-	java -jar $(APPLECMDR) -d test.dsk ebvm.system
-	java -jar $(APPLECMDR) -d test.dsk disass.system
-	java -jar $(APPLECMDR) -d test.dsk sieve.8b
-	java -jar $(APPLECMDR) -d test.dsk unittest.8b
-	java -jar $(APPLECMDR) -d test.dsk tetris.8b
-	java -jar $(APPLECMDR) -d test.dsk a2e.auxmem.emd
-	java -jar $(APPLECMDR) -p test.dsk e8ball.system sys <eightball.system 
-	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
-	java -jar $(APPLECMDR) -p test.dsk disass.system sys <disass.system 
-	java -jar $(APPLECMDR) -p test.dsk sieve.8b txt <8b-scripts/sieve.8b
-	java -jar $(APPLECMDR) -p test.dsk unittest.8b txt <8b-scripts/unittest.8b
-	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <8b-scripts/tetris.8b
-	java -jar $(APPLECMDR) -p test.dsk a2e.auxmem.emd txt <cc65/a2e.auxmem.emd
+eightball.dsk: bin/eightball.system bin/ebvm.system bin/disass.system 8b-scripts/sieve.8b 8b-scripts/unittest.8b 8b-scripts/tetris.8b
+	java -jar $(APPLECMDR) -d eightball.dsk e8ball.system
+	java -jar $(APPLECMDR) -d eightball.dsk ebvm.system
+	java -jar $(APPLECMDR) -d eightball.dsk disass.system
+	java -jar $(APPLECMDR) -d eightball.dsk sieve.8b
+	java -jar $(APPLECMDR) -d eightball.dsk unittest.8b
+	java -jar $(APPLECMDR) -d eightball.dsk tetris.8b
+	java -jar $(APPLECMDR) -d eightball.dsk a2e.auxmem.emd
+	java -jar $(APPLECMDR) -p eightball.dsk e8ball.system sys <bin/eightball.system 
+	java -jar $(APPLECMDR) -p eightball.dsk ebvm.system sys <bin/ebvm.system 
+	java -jar $(APPLECMDR) -p eightball.dsk disass.system sys <bin/disass.system 
+	java -jar $(APPLECMDR) -p eightball.dsk sieve.8b txt <8b-scripts/sieve.8b
+	java -jar $(APPLECMDR) -p eightball.dsk unittest.8b txt <8b-scripts/unittest.8b
+	java -jar $(APPLECMDR) -p eightball.dsk tetris.8b txt <8b-scripts/tetris.8b
+	java -jar $(APPLECMDR) -p eightball.dsk a2e.auxmem.emd txt <cc65/a2e.auxmem.emd
 
 #
 # Run emulator with test diskette images
 #
 
-xvic: test.d64
-	xvic -mem all -drive8type 1541 -8 test.d64
+xvic: eightball.d64
+	xvic -mem all -drive8type 1541 -8 eightball.d64
 
-x64: test.d64
-	x64 -8 test.d64
+x64: eightball.d64
+	x64 -8 eightball.d64
 
-mame: test.dsk
-	mame -w apple2ee -sl6 diskii -floppydisk1 test.dsk
+mame: eightball.dsk
+	mame -w apple2ee -sl6 diskii -floppydisk1 eightball.dsk
 
