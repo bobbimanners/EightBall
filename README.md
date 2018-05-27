@@ -45,11 +45,13 @@ EightBall tries to form a balance of the following qualities, in 20K or so of 65
 
 ## Supported Systems
 The following 6502-based systems are currently supported:
-* Apple II - EightBall runs under ProDOS and uses upper/lowercase text.  It should run on 64K Apple IIe, IIc or IIgs.  It can probably run on Apple II/II+ with an 80 column card, but this has not been tested.
+* Apple II - EightBall runs under ProDOS and uses upper/lowercase text.  It should run on 64K Apple IIe Enhanced, IIc or IIgs.
 * Commodore 64 - EightBall should run on any C64.
 * Commodore VIC-20 - EightBall runs on a VIC-20 with 32K of additional RAM.
 
 EightBall also runs on Linux (built as a 32 bit process using `gcc -m32`.)
+
+With some small modifications, the code could also be built for any 6502-based system supported by the `cc65` compiler.  For the interpreter/compiler program, upper and lower case text support is required (so Apple II/II+ would need an 80 column card.)  The virtual machine program does not necessarily require lower case (if you do not use it in your EightBall code.)
 
 ## Licence
 Free Software licenced under GPL v3.
