@@ -13,7 +13,7 @@ APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
 all: eightball eightballvm disass 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg eightball.system ebvm.system disass.system test.d64 test.dsk
 
 clean:
-	rm -f eightball eightballvm disass *.o 8ball20.* 8ball64.* eightball*.s eightball.system test.d64 *.map *.vice
+	rm -f eightball eightballvm disass *.s *.o *.prg *.system test.d64 *.map *.vice 8b-scripts/*.8bp bytecode
 
 #
 # Linux target
@@ -139,20 +139,20 @@ disass.system: disass_a2e.o eightballutils_a2e.o
 # EightBall scripts
 #
 
-unittest.8bp: unittest.8b
-	tr {} [] <unittest.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > unittest.8bp # ASCII -> PETSCII
+8b-scripts/unittest.8bp: 8b-scripts/unittest.8b
+	tr {} [] <8b-scripts/unittest.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > 8b-scripts/unittest.8bp # ASCII -> PETSCII
 
-sieve4.8bp: sieve4.8b
-	tr {} [] <sieve4.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > sieve4.8bp # ASCII -> PETSCII
+8b-scripts/sieve.8bp: 8b-scripts/sieve.8b
+	tr {} [] <8b-scripts/sieve.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > 8b-scripts/sieve.8bp # ASCII -> PETSCII
 
-tetris.8bp: tetris.8b
-	tr {} [] <tetris.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > tetris.8bp # ASCII -> PETSCII
+8b-scripts/tetris.8bp: 8b-scripts/tetris.8b
+	tr {} [] <8b-scripts/tetris.8b | tr \\100-\\132 \\300-\\332 | tr \\140-\\172 \\100-\\132 > 8b-scripts/tetris.8bp # ASCII -> PETSCII
 
 #
 # Diskette images
 #
 
-test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg unittest.8bp sieve4.8bp tetris.8bp
+test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disass64.prg 8b-scripts/unittest.8bp 8b-scripts/sieve.8bp 8b-scripts/tetris.8bp
 	c1541 -format eb,00 d64 test.d64
 	c1541 -attach test.d64 -write 8ball20.prg
 	c1541 -attach test.d64 -write 8ballvm20.prg
@@ -160,24 +160,24 @@ test.d64: 8ball20.prg 8ballvm20.prg disass20.prg 8ball64.prg 8ballvm64.prg disas
 	c1541 -attach test.d64 -write 8ball64.prg
 	c1541 -attach test.d64 -write 8ballvm64.prg
 	c1541 -attach test.d64 -write disass64.prg
-	c1541 -attach test.d64 -write unittest.8bp unit.8b,s
-	c1541 -attach test.d64 -write sieve4.8bp sieve4.8b,s
-	c1541 -attach test.d64 -write tetris.8bp tetris.8b,s
+	c1541 -attach test.d64 -write 8b-scripts/unittest.8bp unittest.8b,s
+	c1541 -attach test.d64 -write 8b-scripts/sieve.8bp sieve.8b,s
+	c1541 -attach test.d64 -write 8b-scripts/tetris.8bp tetris.8b,s
 
-test.dsk: eightball.system ebvm.system disass.system sieve4.8b tetris.8b
+test.dsk: eightball.system ebvm.system disass.system 8b-scripts/sieve.8b 8b-scripts/unittest.8b 8b-scripts/tetris.8b
 	java -jar $(APPLECMDR) -d test.dsk e8ball.system
 	java -jar $(APPLECMDR) -d test.dsk ebvm.system
 	java -jar $(APPLECMDR) -d test.dsk disass.system
-	java -jar $(APPLECMDR) -d test.dsk sieve4.8b
+	java -jar $(APPLECMDR) -d test.dsk sieve.8b
 	java -jar $(APPLECMDR) -d test.dsk unittest.8b
 	java -jar $(APPLECMDR) -d test.dsk tetris.8b
 	java -jar $(APPLECMDR) -d test.dsk a2e.auxmem.emd
 	java -jar $(APPLECMDR) -p test.dsk e8ball.system sys <eightball.system 
 	java -jar $(APPLECMDR) -p test.dsk ebvm.system sys <ebvm.system 
 	java -jar $(APPLECMDR) -p test.dsk disass.system sys <disass.system 
-	java -jar $(APPLECMDR) -p test.dsk sieve4.8b txt <sieve4.8b
-	java -jar $(APPLECMDR) -p test.dsk unittest.8b txt <unittest.8b
-	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <tetris.8b
+	java -jar $(APPLECMDR) -p test.dsk sieve.8b txt <8b-scripts/sieve.8b
+	java -jar $(APPLECMDR) -p test.dsk unittest.8b txt <8b-scripts/unittest.8b
+	java -jar $(APPLECMDR) -p test.dsk tetris.8b txt <8b-scripts/tetris.8b
 	java -jar $(APPLECMDR) -p test.dsk a2e.auxmem.emd txt <cc65/a2e.auxmem.emd
 
 #
