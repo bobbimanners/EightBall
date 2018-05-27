@@ -66,11 +66,11 @@ There are executables and disk images available to download for Apple II, Commod
 The language itself is documented in this file.  The best way to learn is to study example programs.
 
 Disk images:
-- `test.dsk` - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
-- `test.d64` - Commodore 1541 disk images with EightBall for VIC20 and C64.
+- `eightball.dsk` - ProDOS 2.4.1 bootable disk with EightBall for Apple IIe Enhanced, //c, IIgs.
+- `eightball.d64` - Commodore 1541 disk images with EightBall for VIC20 and C64.
 
 ## Apple II
-I used ADTPro to copy `test.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
+I used ADTPro to copy `eightball.dsk` to a real Disk II 140K floppy.  A solid state drive such as CFFA3000 should also work.
 
 It is also possible to run the EightBall system using the MAME Apple II emulation under Linux.
 
@@ -89,7 +89,7 @@ The compiled code is written to the file `bytecode` on the floppy diskette conta
 If you then invoke the EightBall Virtual Machine `EBVM.SYSTEM`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
 
 ## Commodore 64
-For the Commodore 64, the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
+For the Commodore 64, the file `eightball.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
 
 It is also possible to run the EightBall system using the Vice C64 emulator under Linux.
 
@@ -116,7 +116,7 @@ RUN
 ```
 
 ## VIC 20
-For the Commodore VIC20 (plus 32K expansion RAM), the file `test.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
+For the Commodore VIC20 (plus 32K expansion RAM), the file `eightball.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
 
 It is also possible to run the EightBall system using the Vice VIC20 emulator under Linux.
 
@@ -206,8 +206,8 @@ This will build executables for Linux using `gcc` and for 6502 targets using `cc
 - `8ballvm64.prg` - Virtual machine runtime for C64.
 - `8ballvm20.prg` - Virtual machine runtime for VIC20.
 - `disass` - Bytecode disassembler for Linux.
-- `test.dsk` - Test diskette image for Apple II.
-- `test.d64` - Test diskette image for Commdore C64 and VIC20.
+- `eightball.dsk` - Test diskette image for Apple II.
+- `eightball.d64` - Test diskette image for Commdore C64 and VIC20.
 
 ## First Run (on Linux)
 First start the EightBall editor/interpreter/compiler:
@@ -236,16 +236,16 @@ $ ./disass
 ## Running Apple //e Version with MAME
 You will have to find the Apple II ROMs online for use with MAME.
 
-To start MAME and boot from `test.dsk`:
+To start MAME and boot from `eightball.dsk`:
 ```
-$ mame -w apple2ee -sl6 diskii -floppydisk1 test.dsk
+$ mame -w apple2ee -sl6 diskii -floppydisk1 eightball.dsk
 ```
 Look [here](#apple-ii) for further instructions.
 
 ## Running C64 Version with VICE
 To start the `x64` emulator:
 ```
-$ x64 -8 test.d64
+$ x64 -8 eightball.d64
 ```
 Note that EightBall scripts on Commodore platforms must be encoded in PETSCII rather than ASCII.  `unittest.8bp` is a PETSCII version of `unittest.8b` (created automatically using the Linux `tr` tool - see `Makefile` for details of how this is done.)
 
@@ -254,7 +254,7 @@ Look [here](#commodore-64) for further instructions.
 ## Running VIC20 Version with VICE
 To start the `xvic` emulator:
 ```
-$ xvic -mem all -drive8type 1541 -8 test.d64
+$ xvic -mem all -drive8type 1541 -8 eightball.d64
 ```
 Note that EightBall scripts on Commodore platforms must be encoded in PETSCII rather than ASCII.
 
