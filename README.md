@@ -197,17 +197,25 @@ Once you are satisfied with the `Makefile`, building the software is simple:
 $ make
 ```
 This will build executables for Linux using `gcc` and for 6502 targets using `cc65`.  The build targets are as follows:
-- `eightball` - Editor/interpreter/compiler for Linux (32 bit).
-- `eightball.system` - Editor/interpreter/compiler for Apple IIe Enhanced and compatibles
-- `8ball64.prg` - Editor/interpreter/compiler for C64.
-- `8ball20.prg` - Editor/interpreter/compiler for VIC20.
-- `eightballvm` - Virtual machine runtime for Linux (32 bit).
-- `ebvm.system` - Virtual machine runtime for Apple IIe Enhanced and compatibles
-- `8ballvm64.prg` - Virtual machine runtime for C64.
-- `8ballvm20.prg` - Virtual machine runtime for VIC20.
-- `disass` - Bytecode disassembler for Linux.
-- `eightball.dsk` - Test diskette image for Apple II.
-- `eightball.d64` - Test diskette image for Commdore C64 and VIC20.
+- For Linux:
+  - `eightball` - Editor/interpreter/compiler for Linux (32 bit).
+  - `eightballvm` - Virtual machine runtime for Linux (32 bit).
+  - `disass` - Bytecode disassembler for Linux.
+- For Apple IIe Enhanced, IIc, IIgs:
+  - `eightball.dsk` - Test diskette image for Apple II.  Bootable ProDOS 2.4.1 disk.
+  - `eb.system` - Editor/interpreter/compiler for Apple IIe Enhanced.
+  - `ebvm.system` - Virtual machine runtime for Apple IIe Enhanced.
+  - `ebdiss.system` - Bytecode disassembler for Apple IIe Enhanced.
+- For Commodore VIC20 + 32K expansion:
+  - `eightball.d64` - Test diskette image for Commodore VIC20 and C64.
+  - `8ball20.prg` - Editor/interpreter/compiler for VIC20.
+  - `8ballvm20.prg` - Virtual machine runtime for VIC20.
+  - `disass20.prg` - Bytecode disassembler for VIC20.
+- For Commodore 64:
+  - `eightball.d64` - Test diskette image for Commodore VIC20 and C64.
+  - `8ball64.prg` - Editor/interpreter/compiler for C64.
+  - `8ballvm64.prg` - Virtual machine runtime for C64.
+  - `disass64.prg` - Bytecode disassembler for C64.
 
 ## First Run (on Linux)
 First start the EightBall editor/interpreter/compiler:
