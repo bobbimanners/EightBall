@@ -10,10 +10,10 @@ CC65BINDIR = $(CC65DIR)/bin
 CC65LIBDIR = $(CC65DIR)/lib
 APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
 
-all: bin/eightball bin/eightballvm bin/disass bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bin/8ball64.prg bin/8ballvm64.prg bin/disass64.prg bin/eightball.system bin/ebvm.system bin/disass.system disk-images/eightball.d64 disk-images/eightball.dsk
+all: bin/eightball bin/eightballvm bin/disass bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bin/8ball64.prg bin/8ballvm64.prg bin/disass64.prg bin/eb bin/ebvm bin/ebdiss disk-images/eightball.d64 disk-images/eightball.dsk
 
 clean:
-	rm -f *.s *.o *.map *.vice bin/eightball bin/eightballvm bin/disass bin/*.prg bin/*.system 8b-scripts/*.8bp bytecode disk-images/eightball.d64
+	rm -f *.s *.o *.map *.vice bin/eightball bin/eightballvm bin/disass bin/*.prg bin/eb bin/ebvm bin/ebdiss 8b-scripts/*.8bp bytecode disk-images/eightball.d64
 
 #
 # Linux target
@@ -125,14 +125,14 @@ eightballutils_a2e.o: eightballutils.c eightballutils.h
 	$(CC65BINDIR)/cc65 -Or -t apple2enh -D A2E -o eightballutils_a2e.s eightballutils.c
 	$(CC65BINDIR)/ca65 -t apple2enh eightballutils_a2e.s
 
-bin/eightball.system: eightball_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m 8balla2e.map -o bin/eightball.system -C apple2enh-system.cfg eightball_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/eb: eightball_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m 8balla2e.map -o bin/eb -C apple2enh.cfg -D __HIMEM__=0xbf00 eightball_a2e.o eightballutils_a2e.o $(CC65LIBDIR)/apple2enh.lib
 
-bin/ebvm.system: eightballvm_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o bin/ebvm.system -C apple2enh-system.cfg eightballvm_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/ebvm: eightballvm_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o bin/ebvm -C apple2enh.cfg -D __HIMEM__=0xbf00 eightballvm_a2e.o eightballutils_a2e.o $(CC65LIBDIR)/apple2enh.lib
 
-bin/disass.system: disass_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m disassa2e.map -o bin/disass.system -C apple2enh-system.cfg disass_a2e.o eightballutils_a2e.o apple2enh-iobuf-0800.o $(CC65LIBDIR)/apple2enh.lib
+bin/ebdiss: disass_a2e.o eightballutils_a2e.o
+	$(CC65BINDIR)/ld65 -m disassa2e.map -o bin/ebdiss -C apple2enh.cfg -D __HIMEM__=0xbf00 disass_a2e.o eightballutils_a2e.o $(CC65LIBDIR)/apple2enh.lib
 
 
 #
@@ -164,17 +164,23 @@ disk-images/eightball.d64: bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bi
 	c1541 -attach disk-images/eightball.d64 -write 8b-scripts/sieve.8bp sieve.8b,s
 	c1541 -attach disk-images/eightball.d64 -write 8b-scripts/tetris.8bp tetris.8b,s
 
-disk-images/eightball.dsk: bin/eightball.system bin/ebvm.system bin/disass.system 8b-scripts/sieve.8b 8b-scripts/unittest.8b 8b-scripts/tetris.8b
-	java -jar $(APPLECMDR) -d disk-images/eightball.dsk e8ball.system
+disk-images/eightball.dsk: bin/eb bin/ebvm bin/ebdiss 8b-scripts/sieve.8b 8b-scripts/unittest.8b 8b-scripts/tetris.8b
+	java -jar $(APPLECMDR) -d disk-images/eightball.dsk eb
+	java -jar $(APPLECMDR) -d disk-images/eightball.dsk eb.system
+	java -jar $(APPLECMDR) -d disk-images/eightball.dsk ebvm
 	java -jar $(APPLECMDR) -d disk-images/eightball.dsk ebvm.system
-	java -jar $(APPLECMDR) -d disk-images/eightball.dsk disass.system
+	java -jar $(APPLECMDR) -d disk-images/eightball.dsk ebdiss
+	java -jar $(APPLECMDR) -d disk-images/eightball.dsk ebdiss.system
 	java -jar $(APPLECMDR) -d disk-images/eightball.dsk sieve.8b
 	java -jar $(APPLECMDR) -d disk-images/eightball.dsk unittest.8b
 	java -jar $(APPLECMDR) -d disk-images/eightball.dsk tetris.8b
 	java -jar $(APPLECMDR) -d disk-images/eightball.dsk a2e.auxmem.emd
-	java -jar $(APPLECMDR) -p disk-images/eightball.dsk e8ball.system sys <bin/eightball.system 
-	java -jar $(APPLECMDR) -p disk-images/eightball.dsk ebvm.system sys <bin/ebvm.system 
-	java -jar $(APPLECMDR) -p disk-images/eightball.dsk disass.system sys <bin/disass.system 
+	java -jar $(APPLECMDR) -cc65 disk-images/eightball.dsk eb bin <bin/eb
+	java -jar $(APPLECMDR) -p disk-images/eightball.dsk eb.system sys <cc65/loader.system
+	java -jar $(APPLECMDR) -cc65 disk-images/eightball.dsk ebvm bin <bin/ebvm
+	java -jar $(APPLECMDR) -p disk-images/eightball.dsk ebvm.system sys <cc65/loader.system 
+	java -jar $(APPLECMDR) -cc65 disk-images/eightball.dsk ebdiss bin <bin/ebdiss
+	java -jar $(APPLECMDR) -p disk-images/eightball.dsk ebdiss.system sys <cc65/loader.system 
 	java -jar $(APPLECMDR) -p disk-images/eightball.dsk sieve.8b txt <8b-scripts/sieve.8b
 	java -jar $(APPLECMDR) -p disk-images/eightball.dsk unittest.8b txt <8b-scripts/unittest.8b
 	java -jar $(APPLECMDR) -p disk-images/eightball.dsk tetris.8b txt <8b-scripts/tetris.8b
@@ -184,12 +190,12 @@ disk-images/eightball.dsk: bin/eightball.system bin/ebvm.system bin/disass.syste
 # Run emulator with test diskette images
 #
 
-xvic: eightball.d64
+xvic: disk-images/eightball.d64
 	xvic -mem all -drive8type 1541 -8 disk-images/eightball.d64
 
-x64: eightball.d64
+x64: disk-images/eightball.d64
 	x64 -8 disk-images/eightball.d64
 
-mame: eightball.dsk
+mame: disk-images/eightball.dsk
 	mame -w apple2ee -sl6 diskii -floppydisk1 disk-images/eightball.dsk
 
