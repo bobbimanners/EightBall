@@ -74,7 +74,7 @@ I used ADTPro to copy `eightball.dsk` to a real Disk II 140K floppy.  A solid st
 
 It is also possible to run the EightBall system using the MAME Apple II emulation under Linux.
 
-To run the main EightBall executable, which includes the line editor, interpreter and bytecode compiler, choose to start `EIGHTBALL.SYSTEM` from within the ProDOS launcher.
+To run the main EightBall executable, which includes the line editor, interpreter and bytecode compiler, choose to start `EB.SYSTEM` from within the ProDOS launcher.
 
 You can then enter and run the [test program](#simple-test-program) below.
 
@@ -203,9 +203,9 @@ This will build executables for Linux using `gcc` and for 6502 targets using `cc
   - `disass` - Bytecode disassembler for Linux.
 - For Apple IIe Enhanced, IIc, IIgs:
   - `eightball.dsk` - Test diskette image for Apple II.  Bootable ProDOS 2.4.1 disk.
-  - `eb.system` - Editor/interpreter/compiler for Apple IIe Enhanced.
-  - `ebvm.system` - Virtual machine runtime for Apple IIe Enhanced.
-  - `ebdiss.system` - Bytecode disassembler for Apple IIe Enhanced.
+  - `eb.system` (invokes `eb`) - Editor/interpreter/compiler for Apple IIe Enhanced.
+  - `ebvm.system` (invokes `ebvm`) - Virtual machine runtime for Apple IIe Enhanced.
+  - `ebdiss.system` (invokes `ebdiss`) - Bytecode disassembler for Apple IIe Enhanced.
 - For Commodore VIC20 + 32K expansion:
   - `eightball.d64` - Test diskette image for Commodore VIC20 and C64.
   - `8ball20.prg` - Editor/interpreter/compiler for VIC20.
