@@ -1262,11 +1262,8 @@ unsigned char *auxmemPtrBttm;   /* Auxiliary memory: bottom up heap */
 /*
  * Apple II Enhanced
  *
- * Code starts at 0x2000.  Top of memory is 0xbfff.
- * Stack is 2K immediately below 0xbfff. (0xb800-0xbfff)
- *
- * Space below 0x2000 is used for file buffers (cc65 provides a module we
- * link in for this.)
+ * Code starts at 0x0800.  Top of memory is 0xbf00.
+ * Stack is 2K immediately below 0xbfff. (0xb800-0xbfff) ??
  *
  * Heap usage:
  *   Heap 1: Variables
@@ -1274,18 +1271,16 @@ unsigned char *auxmemPtrBttm;   /* Auxiliary memory: bottom up heap */
  *   Auxiliary memory is used to store program text
  */
 #define HEAP1TOP (char*)0xb7ff
-//#define HEAP1LIM (char*)0x9800
-//#define HEAP1LIM (char*)0xa800
-#define HEAP1LIM (char*)0xa400
+#define HEAP1LIM (char*)0x9800
 
 #define HEAP2TOP (char*)(HEAP1LIM - 1)
 #ifdef EXTMEM
-#define HEAP2LIM (char*)0x9000
+#define HEAP2LIM (char*)0x8000
 #else
-#define HEAP2LIM (char*)0x7f00
+#define HEAP2LIM (char*)0x6f00
 #endif
                                  /* HEAP2LIM HAS TO BE ADJUSTED TO NOT
-                                  * TRASH THE CODE, WHICH LOADS FROM $2000 UP
+                                  * TRASH THE CODE, WHICH LOADS FROM $0800 UP
                                   * USE THE MAPFILE! */
 
 #define AUXMEMTOP (char*)(192*256)  /* Amount of aux memory available */
