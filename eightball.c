@@ -173,8 +173,11 @@ char onlyconstants = 0;         /* 0 is normal, 1 means only allow const exprs *
 char compiletimelookup = 0;     /* When set to 1, getintvar() will do lookup   */
                                 /* rather than code generation                 */
 
+#define FILENAMELEN 15
+
 char readbuf[255];              /* Buffer for reading from file                */
 char lnbuf[255];                /* Input text line buffer                      */
+char filename[FILENAMELEN+1];   /* Name of bytecode file                       */
 char *txtPtr;                   /* Pointer to next character to read in lnbuf  */
 
 #define STACKSZ 16              /* Size of expression stacks   */
@@ -1802,7 +1805,7 @@ void writebytecode()
 #else
     p = (unsigned char *) CODESTART;
 #endif
-    strcpy(readbuf, "bytecode");
+    strcpy(readbuf, filename);
     printchar('\n');
     openfile(1);
     print("...\n");
@@ -4251,7 +4254,7 @@ struct stmnttabent stmnttab[] = {
     {"byte", TOK_BYTE, CUSTOM},         /* 15 */
     {"const", TOK_CONST, CUSTOM},       /* 16 */
     {"run", TOK_RUN, NOARGS},           /* 17 */
-    {"comp", TOK_COMPILE, NOARGS},      /* 18 */
+    {"comp", TOK_COMPILE, ONESTRARG},   /* 18 */
     {"new", TOK_NEW, NOARGS},           /* 19 */
     {"sub", TOK_SUBR, INITIALNAMEARG},  /* 20 */
     {"endsub", TOK_ENDSUBR, NOARGS},    /* 21 */
@@ -4717,6 +4720,8 @@ unsigned char parseline()
             run(0);             /* Start from beginning */
             break;
         case TOK_COMPILE:
+            strncpy(filename, readbuf, FILENAMELEN);
+            filename[FILENAMELEN] = 0; /* Just in case not terminated */
             compile = 1;
             subsbegin = subsend = NULL;
             callsbegin = callsend = NULL;

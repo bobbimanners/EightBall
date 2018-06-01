@@ -81,12 +81,12 @@ You can then enter and run the [test program](#simple-test-program) below.
 One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
 
 ```
-comp
+comp "test"
 quit
 ```
-The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.
+The compiled code is written to the file `test` on the floppy diskette containing the EightBall system.
 
-If you then invoke the EightBall Virtual Machine `EBVM.SYSTEM`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
+If you then invoke the EightBall Virtual Machine `EBVM.SYSTEM`, it will prompt you for the name of the bytecode file to load.  Enter `test` at the prompt to run the code you just compiled.  The VM is much faster than the interpreter.
 
 ## Commodore 64
 For the Commodore 64, the file `eightball.d64` can be written to a real C1541 floppy, or to a solid state drive such as SD2IEC.
@@ -104,12 +104,13 @@ You can then enter and run the [test program](#simple-test-program) below.
 One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
 
 ```
-comp
+comp "test"
 quit
 ```
-The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.  (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due coure.)
+The compiled code is written to the file `test` on the floppy diskette containing the EightBall system. (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due course.)
 
-If you then invoke the EightBall Virtual Machine `8BALLVM64.PRG`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
+If you then invoke the EightBall Virtual Machine `8BALLVM64.PRG`, it will prompt you for the name of the bytecode file to load.  Enter `test` at the prompt to run the code you just compiled.  The VM is much faster than the interpreter.
+
 ```
 LOAD"8BALLVM64.PRG",8
 RUN
@@ -131,10 +132,10 @@ You can then enter and run the [test program](#simple-test-program) below.
 One you have entered the test program and run it in the interpreter, you can compile it to bytecode as follows:
 
 ```
-comp
+comp "bytecode"
 quit
 ```
-The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.  (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due coure.)
+The compiled code is written to the file `bytecode` on the floppy diskette containing the EightBall system.  (Note that if this file already exists an error will occur.  This is a known deficiency which I will address in due course.)
 
 If you then invoke the EightBall Virtual Machine `8BALLVM20.PRG`, it will load and execute this bytecode.  The VM is much faster than the interpreter.
 ```
@@ -229,17 +230,19 @@ run
 ```
 Then to compile it, and save the bytecode to the file `bytecode`:
 ```
-comp
+comp "bytecode"
 quit
 ```
 And finally, to run the bytecode under the VM:
 ```
 $ ./eightballvm
 ```
-The bytecode disassember may be used to examine the bytecode in a human-readable format:
+The bytecode disassembler may be used to examine the bytecode in a human-readable format:
 ```
 $ ./disass
 ```
+
+Both the VM and the disassembler prompt for the name of the bytecode file to load (`bytecode` in this example.)
 
 ## Running Apple //e Version with MAME
 You will have to find the Apple II ROMs online for use with MAME.
@@ -719,11 +722,11 @@ Program runs until it hits an `end` statement, an error occurs or it is interrup
 
 ### Compile Stored Program
 
-    comp
+    comp "bytecodefile"
 
-The program in memory is compiled to EightBall VM bytecode.  This is written to a file `bytecode`.
+The program in memory is compiled to EightBall VM bytecode.  This is written to a file specified.
 
-The `bytecode` file may be executed using the EightBall Virtual Machine that is part of this package.
+The bytecode file may be executed using the EightBall Virtual Machine that is part of this package.
 
 ### Quit EightBall
 
