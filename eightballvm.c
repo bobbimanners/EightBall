@@ -88,27 +88,60 @@
 #define UINT16 unsigned short
 #endif
 
-UINT16 pc = RTPCSTART;          /* Program counter */
-UINT16 sp = RTCALLSTACKTOP;     /* Stack pointer   */
-UINT16 fp = RTCALLSTACKTOP;     /* Frame pointer   */
+#ifndef A2E
 
-/* Evaluation stack - 16 bit ints.  Addressed by evalptr */
-UINT16 evalstack[EVALSTACKSZ];
+unsigned char evalptr;          /* Points to the empty slot above top of eval stack */
+UINT16 pc;                      /* Program counter */
+UINT16 sp;                      /* Stack pointer   */
+UINT16 fp;                      /* Frame pointer   */
+unsigned short *wordptr;        /* Temp used in execute() */
+unsigned char *byteptr;         /* Temp used in execute() */
+UINT16 evalstack[EVALSTACKSZ];  /* Evaluation stack - 16 bit ints.  Addressed by evalptr */
 
-/* evalptr points to the empty slot above the top of the evaluation stack */
-unsigned char evalptr = 0;
+#else
 
 /*
-* System memory - addressed in bytes.
-* Used for program storage.  Addressed by pc.
-*  - Programs are stored from address 0 upwards.
-* Used for callstack.  Addressed by sp.
-*  - Callstack grows down from top of memory.
-*/
+ * Zero page variables used on Apple II only at present
+ */
+
+extern unsigned char evalptr;
+extern UINT16 pc;
+extern UINT16 sp;
+extern UINT16 fp;
+extern unsigned short *wordptr;
+extern unsigned char *byteptr;
+extern UINT16 evalstack[EVALSTACKSZ];
+
+#pragma zpsym ("evalptr");
+#pragma zpsym ("pc");
+#pragma zpsym ("sp");
+#pragma zpsym ("fp");
+#pragma zpsym ("wordptr");
+#pragma zpsym ("byteptr");
+#pragma zpsym ("evalstack");
+
+#endif
+
+/*
+ * System memory - addressed in bytes.
+ * Used for program storage.  Addressed by pc.
+ *  - Programs are stored from address 0 upwards.
+ * Used for callstack.  Addressed by sp.
+ *  - Callstack grows down from top of memory.
+ */
 #ifdef __GNUC__
 unsigned char memory[MEMORYSZ];
 #else
 unsigned char *memory = 0;
+#endif
+
+/*
+ * Macro to ensure efficient code generation on cc65 when accessing memory
+ */
+#ifdef __GNUC__
+#define MEM(x) memory[x]
+#else
+#define MEM(x) (*(unsigned char*)x)
 #endif
 
 #define XREG evalstack[evalptr - 1]     /* Only valid if evalptr >= 1 */
@@ -213,7 +246,7 @@ void checkstackoverflow()
 void unsupported()
 {
     print("Unsupported instruction ");
-    printhexbyte(memory[pc]);
+    printhexbyte(MEM(pc));
     print("\nPC=");
     printhex(pc);
     printchar('\n');
@@ -221,20 +254,26 @@ void unsupported()
 }
 
 /*
- * Fetch, decode and execute a VM instruction, then advance the program counter.
+ * Fetch, decode and execute a VM instruction.
+ * Advance program counter and loop until VM_END.
  */
-void execute_instruction()
+void execute()
 {
-    unsigned short tempword;
-    unsigned short *wordptr;
-    unsigned char *byteptr;
-#ifndef __GNUC__
-    unsigned short delay;
+    unsigned short d;
+#ifdef DEBUGREGS
+    unsigned short i;
 #endif
+
+    evalptr = 0;
+    pc = RTPCSTART;
+    sp = fp = RTCALLSTACKTOP;
+
+    while (1) {
+
+nextinstr:
 
     //print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
 #ifdef DEBUGREGS
-    unsigned short i;
     print("\n");
     print("--->PC ");
     printhex(pc);
@@ -247,7 +286,7 @@ void execute_instruction()
     print("\n");
     print("Call Stk: ");
     for (i = sp + 1; i <= RTCALLSTACKTOP; ++i) {
-        printhexbyte(memory[i]);
+        printhexbyte(MEM(i));
         printchar(' ');
     }
     print("\nEval Stk: ");
@@ -269,22 +308,22 @@ void execute_instruction()
 #endif
     printhex(pc);
     print(": ");
-    print(bytecodenames[memory[pc]]);
+    print(bytecodenames[MEM(pc)]);
 /* TODO: Should encode immediate mode as one bit of opcode to make this more efficient */
-    if ((memory[pc] == VM_LDIMM) ||
-        (memory[pc] == VM_LDAWORDIMM) ||
-        (memory[pc] == VM_LDABYTEIMM) ||
-        (memory[pc] == VM_LDRWORDIMM) ||
-        (memory[pc] == VM_LDRBYTEIMM) ||
-        (memory[pc] == VM_STAWORDIMM) ||
-        (memory[pc] == VM_STABYTEIMM) ||
-        (memory[pc] == VM_STRWORDIMM) ||
-        (memory[pc] == VM_STRBYTEIMM) ||
-        (memory[pc] == VM_JMPIMM) ||
-        (memory[pc] == VM_BRNCHIMM) ||
-        (memory[pc] == VM_JSRIMM)) {
+    if ((MEM(pc) == VM_LDIMM) ||
+        (MEM(pc) == VM_LDAWORDIMM) ||
+        (MEM(pc) == VM_LDABYTEIMM) ||
+        (MEM(pc) == VM_LDRWORDIMM) ||
+        (MEM(pc) == VM_LDRBYTEIMM) ||
+        (MEM(pc) == VM_STAWORDIMM) ||
+        (MEM(pc) == VM_STABYTEIMM) ||
+        (MEM(pc) == VM_STRWORDIMM) ||
+        (MEM(pc) == VM_STRBYTEIMM) ||
+        (MEM(pc) == VM_JMPIMM) ||
+        (MEM(pc) == VM_BRNCHIMM) ||
+        (MEM(pc) == VM_JSRIMM)) {
         printchar(' ');
-        wordptr = (unsigned short *)&memory[pc + 1];
+        wordptr = (unsigned short *)&MEM(pc + 1);
         printhex(*wordptr);
         printchar(' ');
     } else {
@@ -317,7 +356,7 @@ void execute_instruction()
 #endif
 #endif
 
-    switch (memory[pc]) {
+    switch (MEM(pc)) {
         /*
          * Miscellaneous
          */
@@ -330,7 +369,7 @@ void execute_instruction()
 #ifdef __GNUC__
         exit(0);
 #else
-        for (delay = 0; delay < 25000; ++delay);
+        for (d = 0; d < 25000; ++d);
         exit(0);
 #endif
         break;
@@ -341,7 +380,7 @@ void execute_instruction()
     case VM_LDIMM:             /* Pushes the following 16 bit word to the evaluation stack     */
         ++evalptr;
         CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[++pc];
+        wordptr = (unsigned short *)&MEM(++pc);
         ++pc;
         XREG = *wordptr;
         break;
@@ -358,52 +397,52 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        wordptr = (unsigned short *)&memory[XREG];
+        wordptr = (unsigned short *)&MEM(XREG);
         XREG = *wordptr;
         break;
     case VM_LDAWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
         ++evalptr;
         CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
-        wordptr = (unsigned short *)&memory[*wordptr]; /* Pointer to variable */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
         ++pc;
         XREG = *wordptr;
         break;
     case VM_LDABYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
         CHECKUNDERFLOW(1);
-        XREG = memory[XREG];
+        XREG = MEM(XREG);
         break;
     case VM_LDABYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode         */
         ++evalptr;
         CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[++pc];    /* Pointer to operand */
-        byteptr = (unsigned char *)&memory[*wordptr]; /* Pointer to variable */
+        wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
+        byteptr = (unsigned char *)&MEM(*wordptr); /* Pointer to variable */
         ++pc;
         XREG = *byteptr;
         break;
     case VM_STAWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
         CHECKUNDERFLOW(2);
-        wordptr = (unsigned short *)&memory[XREG];
+        wordptr = (unsigned short *)&MEM(XREG);
         *wordptr = YREG;
         evalptr -= 2;
         break;
     case VM_STAWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
         CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
-        wordptr = (unsigned short *)&memory[*wordptr]; /* Pointer to variable */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
         ++pc;
         *wordptr = XREG;
         --evalptr;
         break;
     case VM_STABYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
-        memory[XREG] = YREG;
+        MEM(XREG) = YREG;
         evalptr -= 2;
         break;
     case VM_STABYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
         CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
-        byteptr = (unsigned char *)&memory[*wordptr];  /* Pointer to variable */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+        byteptr = (unsigned char *)&MEM(*wordptr);  /* Pointer to variable */
         ++pc;
         *byteptr = XREG;
         --evalptr;
@@ -425,14 +464,22 @@ void execute_instruction()
         printchar('\n');
 #endif
 
+#ifdef __GNUC__
         wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
+#else
+        wordptr = (unsigned short *)&memory[XREG + fp + 1];
+#endif
         XREG = *wordptr;
         break;
     case VM_LDRWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
         ++evalptr;
         CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
         wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+#else
+        wordptr = (unsigned short *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
+#endif
         ++pc;
         XREG = *wordptr;
         break;
@@ -449,39 +496,63 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        XREG = memory[(XREG + fp + 1) & 0xffff];
+#ifdef __GNUC__
+        XREG = MEM((XREG + fp + 1) & 0xffff);
+#else
+        XREG = MEM(XREG + fp + 1);
+#endif
         break;
     case VM_LDRBYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode          */
         ++evalptr;
         CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[++pc];    /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
+#ifdef __GNUC__
         byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+#else
+        byteptr = (unsigned char *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
+#endif
         ++pc;
         XREG = *byteptr;
         break;
     case VM_STRWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
+#ifdef __GNUC__
         wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
+#else
+        wordptr = (unsigned short *)&memory[XREG + fp + 1];
+#endif
         *wordptr = YREG;
         evalptr -= 2;
         break;
     case VM_STRWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
         CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
         wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
+#else
+        wordptr = (unsigned short *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
+#endif
         ++pc;
         *wordptr = XREG;
         --evalptr;
         break;
     case VM_STRBYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
         CHECKUNDERFLOW(2);
+#ifdef __GNUC__
         memory[(XREG + fp + 1) & 0xffff] = YREG;
+#else
+        memory[XREG + fp + 1] = YREG;
+#endif
         evalptr -= 2;
         break;
     case VM_STRBYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
         CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&memory[++pc];     /* Pointer to operand */
+        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
         byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff];  /* Pointer to variable */
+#else
+        byteptr = (unsigned char *)&memory[*wordptr + fp + 1];  /* Pointer to variable */
+#endif
         ++pc;
         *byteptr = XREG;
         --evalptr;
@@ -491,9 +562,9 @@ void execute_instruction()
          */
     case VM_SWAP:              /* Swaps X and Y                                                */
         CHECKUNDERFLOW(2);
-        tempword = XREG;
+        d = XREG;
         XREG = YREG;
-        YREG = tempword;
+        YREG = d;
         break;
     case VM_DUP:               /* Duplicates X -> X, Y                                         */
         CHECKUNDERFLOW(1);
@@ -538,7 +609,7 @@ void execute_instruction()
         ++sp;
         ++evalptr;
         CHECKOVERFLOW();
-        XREG = memory[sp];
+        XREG = MEM(sp);
         break;
     case VM_PSHWORD:           /* Push 16 bit value in X onto call stack.  Drop X.             */
         CHECKUNDERFLOW(1);
@@ -549,11 +620,9 @@ void execute_instruction()
         printchar('\n');
 #endif
         byteptr = (unsigned char *)&XREG;
-        memory[sp] = *(byteptr + 1);
-        --sp;
+        MEM(sp--) = *(byteptr + 1);
         CHECKSTACKOVERFLOW();
-        memory[sp] = *byteptr;
-        --sp;
+        MEM(sp--) = *byteptr;
         CHECKSTACKOVERFLOW();
         --evalptr;
         break;
@@ -566,8 +635,7 @@ void execute_instruction()
         printchar('\n');
 #endif
 
-        memory[sp] = XREG & 0x00ff;
-        --sp;
+        MEM(sp--) = XREG & 0x00ff;
         CHECKSTACKOVERFLOW();
         --evalptr;
         break;
@@ -588,11 +656,9 @@ void execute_instruction()
 
         /* Push old FP to stack */
         byteptr = (unsigned char *)&fp;
-        memory[sp] = *(byteptr + 1);
-        --sp;
+        MEM(sp--) = *(byteptr + 1);
         CHECKSTACKOVERFLOW();
-        memory[sp] = *byteptr;
-        --sp;
+        MEM(sp--) = *byteptr;
         CHECKSTACKOVERFLOW();
 
         fp = sp;
@@ -624,10 +690,18 @@ void execute_instruction()
 
         break;
     case VM_ATOR:              /* Convert absolute address in X to relative address            */
+#ifdef __GNUC__
         XREG = (XREG - fp - 1) & 0xffff;
+#else
+        XREG = XREG - fp - 1;
+#endif
         break;
     case VM_RTOA:              /* Convert relative address in X to absolute address            */
+#ifdef __GNUC__
         XREG = (XREG + fp + 1) & 0xffff;
+#else
+        XREG = XREG + fp + 1;
+#endif
         break;
         /*
          * Integer math
@@ -758,12 +832,12 @@ void execute_instruction()
         CHECKUNDERFLOW(1);
         pc = XREG;
         --evalptr;
-        return;                 /* Do not advance program counter */
+        goto nextinstr;        /* Do not advance program counter */
     case VM_JMPIMM:            /* Imm mode - jump to 16 bit word following opcode              */
-        wordptr = (unsigned short *)&memory[++pc];
+        wordptr = (unsigned short *)&MEM(++pc);
         ++pc;
         pc = *wordptr;
-        return;
+        goto nextinstr;        /* Do not advance program counter */
     case VM_BRNCH:             /* If Y!= 0, jump to address X.  Drop X, Y.                     */
         CHECKUNDERFLOW(2);
         if (YREG) {
@@ -772,9 +846,9 @@ void execute_instruction()
             ++pc;
         }
         evalptr -= 2;
-        return;                 /* Do not advance program counter */
+        goto nextinstr;        /* Do not advance program counter */
     case VM_BRNCHIMM:          /* Imm mode - if X!=0 branch to 16 bit word following opcode    */
-        wordptr = (unsigned short *)&memory[++pc];
+        wordptr = (unsigned short *)&MEM(++pc);
         ++pc;
         CHECKUNDERFLOW(1);
         if (XREG) {
@@ -783,35 +857,35 @@ void execute_instruction()
             ++pc;
         }
         --evalptr;
-        return;                 /* Do not advance program counter */
+        goto nextinstr;        /* Do not advance program counter */
     case VM_JSR:               /* Push PC to call stack.  Jump to address X.  Drop X.          */
         CHECKUNDERFLOW(1);
         byteptr = (unsigned char *) &pc;
-        memory[sp] = *(byteptr + 1);
+        MEM(sp) = *(byteptr + 1);
         --sp;
         CHECKSTACKOVERFLOW();
-        memory[sp] = *byteptr;
+        MEM(sp) = *byteptr;
         --sp;
         CHECKSTACKOVERFLOW();
         pc = XREG;
         --evalptr;
-        return;                 /* Do not advance program counter */
+        goto nextinstr;        /* Do not advance program counter */
     case VM_JSRIMM:            /* Imm mode - push PC to calls stack, jump to 16 bit word       */
-        wordptr = (unsigned short *)&memory[++pc];
+        wordptr = (unsigned short *)&MEM(++pc);
         ++pc;
         byteptr = (unsigned char *) &pc;
-        memory[sp] = *(byteptr + 1);
+        MEM(sp) = *(byteptr + 1);
         --sp;
         CHECKSTACKOVERFLOW();
-        memory[sp] = *byteptr;
+        MEM(sp) = *byteptr;
         --sp;
         CHECKSTACKOVERFLOW();
         pc = *wordptr;
-        return;                 /* Do not advance program counter */
+        goto nextinstr;        /* Do not advance program counter */
     case VM_RTS:               /* Pop call stack, jump to the address popped.                  */
         CHECKSTACKUNDERFLOW(2);
         ++sp;
-        wordptr = (unsigned short *)&memory[sp];
+        wordptr = (unsigned short *)&MEM(sp);
         pc = *wordptr;
         ++sp;
         break;
@@ -835,15 +909,15 @@ void execute_instruction()
         break;
     case VM_PRSTR:             /* Print null terminated string pointed to by X.  Drop X        */
         CHECKUNDERFLOW(1);
-        while (memory[XREG]) {
-            printchar(memory[XREG++]);
+        while (MEM(XREG)) {
+            printchar(MEM(XREG++));
         }
         --evalptr;
         break;
     case VM_PRMSG:             /* Print literal string at PC (null terminated)                 */
         ++pc;
-        while (memory[pc]) {
-            printchar(memory[pc++]);
+        while (MEM(pc)) {
+            printchar(MEM(pc++));
         }
         break;
     case VM_KBDCH:             /* Push character from keyboard onto eval stack                 */
@@ -862,7 +936,7 @@ void execute_instruction()
     case VM_KBDLN:             /* Obtain line from keyboard and write to memory pointed to by  */
         /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
         CHECKUNDERFLOW(2);
-        getln((char *) &memory[YREG], XREG);
+        getln((char *) &MEM(YREG), XREG);
         evalptr -= 2;
         break;
         /*
@@ -873,17 +947,8 @@ void execute_instruction()
         break;
     }
     ++pc;
-};
-
-/*
- * Run the program!
- */
-void execute()
-{
-    while (1) {
-        execute_instruction();
     }
-}
+};
 
 /*
  * Load bytecode into memory[].
@@ -892,7 +957,7 @@ void load()
 {
     FILE *fp;
     char ch;
-    char *p = (char*)&memory[RTPCSTART];
+    char *p = (char*)&MEM(RTPCSTART);
 
     pc = RTPCSTART;
     do {
@@ -913,7 +978,7 @@ void load()
     } while (!fp);
     while (!feof(fp)) {
         ch = fgetc(fp);
-        memory[pc++] = ch;
+        MEM(pc++) = ch;
         /* Print dot for each page */
         if (pc%0xff == 0) {
             printchar('.');
