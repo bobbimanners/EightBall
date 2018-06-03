@@ -14,5 +14,6 @@
 .exportzp _fp        := $a5
 .exportzp _wordptr   := $a7
 .exportzp _byteptr   := $a9
-.exportzp _evalstack := $ab ; 32 bytes
+.exportzp _tempword  := $ab
+.exportzp _evalstack := $ad ; 32 bytes
 

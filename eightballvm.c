@@ -46,8 +46,6 @@
 #define DEBUG
 #define EXTRADEBUG
 #define DEBUGREGS
-#define DEBUGADDRESSING
-#define DEBUGSTACK
 */
 
 /* Define STACKCHECKS to enable paranoid stack checking */
@@ -94,8 +92,9 @@ unsigned char evalptr;          /* Points to the empty slot above top of eval st
 UINT16 pc;                      /* Program counter */
 UINT16 sp;                      /* Stack pointer   */
 UINT16 fp;                      /* Frame pointer   */
-unsigned short *wordptr;        /* Temp used in execute() */
-unsigned char *byteptr;         /* Temp used in execute() */
+UINT16 tempword;
+unsigned short *wordptr;
+unsigned char *byteptr;
 UINT16 evalstack[EVALSTACKSZ];  /* Evaluation stack - 16 bit ints.  Addressed by evalptr */
 
 #else
@@ -108,6 +107,7 @@ extern unsigned char evalptr;
 extern UINT16 pc;
 extern UINT16 sp;
 extern UINT16 fp;
+extern UINT16 tempword;
 extern unsigned short *wordptr;
 extern unsigned char *byteptr;
 extern UINT16 evalstack[EVALSTACKSZ];
@@ -116,6 +116,7 @@ extern UINT16 evalstack[EVALSTACKSZ];
 #pragma zpsym ("pc");
 #pragma zpsym ("sp");
 #pragma zpsym ("fp");
+#pragma zpsym ("tempword");
 #pragma zpsym ("wordptr");
 #pragma zpsym ("byteptr");
 #pragma zpsym ("evalstack");
@@ -254,12 +255,912 @@ void unsupported()
 }
 
 /*
+ * Terminate VM_END
+ */
+void vm_end() {
+    if (evalptr > 0) {
+        print("WARNING: evalptr ");
+        printdec(evalptr);
+        printchar('\n');
+    }
+#ifdef __GNUC__
+    exit(0);
+#else
+    for (tempword = 0; tempword < 25000; ++tempword);
+    exit(0);
+#endif
+}
+
+/*
+ * Pushes the following 16 bit word to the evaluation stack
+ */
+void vm_ldimm() {
+    ++evalptr;
+    CHECKOVERFLOW();
+    wordptr = (unsigned short *)&MEM(++pc);
+    XREG = *wordptr;
+    pc += 2;
+}
+
+/*
+ * Replaces X with 16 bit value pointed to by X
+ */
+void vm_ldaword() {
+    CHECKUNDERFLOW(1);
+    wordptr = (unsigned short *)&MEM(XREG);
+    XREG = *wordptr;
+    ++pc;
+}
+
+/*
+ * Imm mode - push 16 bit value pointed to by addr after opcode
+ */
+void vm_ldawordimm() {
+    ++evalptr;
+    CHECKOVERFLOW();
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+    wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
+    XREG = *wordptr;
+    pc += 2;
+}
+
+/*
+ * Replaces X with 8 bit value pointed to by X
+ */
+void vm_ldabyte() {
+    CHECKUNDERFLOW(1);
+    XREG = MEM(XREG);
+    ++pc;
+}
+
+/*
+ * Imm mode - push byte pointed to by addr after opcode
+ */
+void vm_ldabyteimm() {
+    ++evalptr;
+    CHECKOVERFLOW();
+    wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
+    byteptr = (unsigned char *)&MEM(*wordptr); /* Pointer to variable */
+    XREG = *byteptr;
+    pc += 2;
+}
+
+/*
+ * Stores 16 bit value Y in addr pointed to by X. Drops X and Y
+ */
+void vm_staword() {
+    CHECKUNDERFLOW(2);
+    wordptr = (unsigned short *)&MEM(XREG);
+    *wordptr = YREG;
+    evalptr -= 2;
+    ++pc;
+}
+
+/*
+ * Imm mode - store 16 bit value X in addr after opcode. Drop X
+ */
+void vm_stawordimm() {
+    CHECKUNDERFLOW(1);
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+    wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
+    *wordptr = XREG;
+    --evalptr;
+    pc += 2;
+}
+
+/*
+ * Stores 8 bit value Y in addr pointed to by X. Drops X and Y
+ */
+void vm_stabyte() {
+    CHECKUNDERFLOW(2);
+    MEM(XREG) = YREG;
+    evalptr -= 2;
+    ++pc;
+}
+
+/*
+ * Imm mode - store 8 bit value X in addr after opcode. Drop X
+ */
+void vm_stabyteimm() {
+    CHECKUNDERFLOW(1);
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+    byteptr = (unsigned char *)&MEM(*wordptr);  /* Pointer to variable */
+    *byteptr = XREG;
+    --evalptr;
+    pc += 2;
+}
+
+
+/*
+ * Replaces X with 16 bit value pointed to by X
+ */
+void vm_ldrword() {
+    CHECKUNDERFLOW(1);
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM((XREG + fp + 1) & 0xffff);
+#else
+    tempword = XREG + fp + 1;
+    wordptr = (unsigned short *)&MEM(tempword);
+#endif
+    XREG = *wordptr;
+    ++pc;
+}
+
+/*
+ * Imm mode - push 16 bit value pointed to by addr after opcode
+ */
+void vm_ldrwordimm() {
+    ++evalptr;
+    CHECKOVERFLOW();
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM((*wordptr + fp + 1) & 0xffff); /* Pointer to variable */
+#else
+    tempword = *wordptr + fp + 1;
+    wordptr = (unsigned short *)&MEM(tempword); /* Pointer to variable */
+#endif
+    XREG = *wordptr;
+    pc += 2;
+}
+
+/*
+ * Replaces X with 8 bit value pointed to by X.
+ */
+void vm_ldrbyte() {
+    CHECKUNDERFLOW(1);
+#ifdef __GNUC__
+    XREG = MEM((XREG + fp + 1) & 0xffff);
+#else
+    XREG = MEM(XREG + fp + 1);
+#endif
+    ++pc;
+}
+
+/*
+ * Imm mode - push byte pointed to by addr after opcode
+ */
+void vm_ldrbyteimm() {
+    ++evalptr;
+    CHECKOVERFLOW();
+    wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
+#ifdef __GNUC__
+    byteptr = (unsigned char *)&MEM((*wordptr + fp + 1) & 0xffff); /* Pointer to variable */
+#else
+    tempword = *wordptr + fp + 1;
+    byteptr = (unsigned char *)&MEM(tempword); /* Pointer to variable */
+#endif
+    XREG = *byteptr;
+    pc += 2;
+}
+
+/*
+ * Stores 16 bit value Y in addr pointed to by X. Drops X and Y
+ */
+void vm_strword() {
+    CHECKUNDERFLOW(2);
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM((XREG + fp + 1) & 0xffff);
+#else
+    tempword = XREG + fp + 1;
+    wordptr = (unsigned short *)&MEM(tempword);
+#endif
+    *wordptr = YREG;
+    evalptr -= 2;
+    ++pc;
+}
+
+/*
+ * Imm mode - store 16 bit value X in addr after opcode. Drop X
+ */
+void vm_strwordimm() {
+    CHECKUNDERFLOW(1);
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM((*wordptr + fp + 1) & 0xffff); /* Pointer to variable */
+#else
+    tempword = *wordptr + fp + 1;
+    wordptr = (unsigned short *)&MEM(tempword); /* Pointer to variable */
+#endif
+    *wordptr = XREG;
+    --evalptr;
+    pc += 2;
+}
+
+/*
+ * Stores 8 bit value Y in addr pointed to by X. Drops X and Y
+ */
+void vm_strbyte() {
+    CHECKUNDERFLOW(2);
+#ifdef __GNUC__
+    MEM((XREG + fp + 1) & 0xffff) = YREG;
+#else
+    tempword = XREG + fp + 1;
+    MEM(tempword) = YREG;
+#endif
+    evalptr -= 2;
+    ++pc;
+}
+
+/*
+ * Imm mode - store 8 bit value X in addr after opcode. Drop X
+ */
+void vm_strbyteimm() {
+    CHECKUNDERFLOW(1);
+    wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
+#ifdef __GNUC__
+    byteptr = (unsigned char *)&MEM((*wordptr + fp + 1) & 0xffff);  /* Pointer to variable */
+#else
+    tempword = *wordptr + fp + 1;
+    byteptr = (unsigned char *)&MEM(tempword);  /* Pointer to variable */
+#endif
+    *byteptr = XREG;
+    --evalptr;
+    pc += 2;
+}
+
+/*
+ * Swaps X and Y
+ */
+void vm_swap() {
+    CHECKUNDERFLOW(2);
+    tempword = XREG;
+    XREG = YREG;
+    YREG = tempword;
+    ++pc;
+}
+
+/*
+ * Duplicates X -> X, Y
+ */
+void vm_dup() {
+    CHECKUNDERFLOW(1);
+    ++evalptr;
+    CHECKOVERFLOW();
+    XREG = YREG;
+    ++pc;
+}
+
+/*
+ * Duplicates X -> X,Z; Y -> Y,T
+ */
+void vm_dup2() {
+    CHECKUNDERFLOW(2);
+    evalptr += 2;
+    CHECKOVERFLOW();
+    XREG = ZREG;
+    YREG = TREG;
+    ++pc;
+}
+
+/*
+ * Drops X
+ */
+void vm_drop() {
+    CHECKUNDERFLOW(1);
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Duplicates Y -> X,Z
+ */
+void vm_over() {
+    CHECKUNDERFLOW(2);
+    ++evalptr;
+    CHECKOVERFLOW();
+    XREG = ZREG;
+    ++pc;
+}
+
+/*
+ * Duplicates stack level specified in X+1  -> X
+ */
+void vm_pick() {
+        CHECKUNDERFLOW(XREG + 1);
+        XREG = evalstack[evalptr - (XREG + 1)];
+    ++pc;
+}
+
+/*
+ * Pop 16 bit value from call stack, push onto eval stack [X]
+ */
+void vm_popword() {
+    CHECKSTACKUNDERFLOW(2);
+    sp += 2;
+    ++evalptr;
+    CHECKOVERFLOW();
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM(sp - 1);
+#else
+    tempword = sp - 1;
+    wordptr = (unsigned short *)&MEM(tempword);
+#endif
+    XREG = *wordptr;
+    ++pc;
+}
+
+/*
+ * Pop 8 bit value from call stack, push onto eval stack [X]
+ */
+void vm_popbyte() {
+    CHECKSTACKUNDERFLOW(1);
+    ++sp;
+    ++evalptr;
+    CHECKOVERFLOW();
+    XREG = MEM(sp);
+    ++pc;
+}
+
+/*
+ * Push 16 bit value in X onto call stack.  Drop X
+ */
+void vm_pshword() {
+    CHECKUNDERFLOW(1);
+    byteptr = (unsigned char *)&XREG;
+    MEM(sp--) = *(byteptr + 1);
+    CHECKSTACKOVERFLOW();
+    MEM(sp--) = *byteptr;
+    CHECKSTACKOVERFLOW();
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Push 8 bit value in X onto call stack.  Drop X
+ */
+void vm_pshbyte() {
+    CHECKUNDERFLOW(1);
+    MEM(sp--) = XREG & 0x00ff;
+    CHECKSTACKOVERFLOW();
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Discard X bytes from call stack.  Drop X
+ */
+void vm_discard() {
+    CHECKUNDERFLOW(1);
+    sp += XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Copy stack pointer to frame pointer. (Enter function scope)
+ */
+void vm_sptofp() {
+    /* Push old FP to stack */
+    byteptr = (unsigned char *)&fp;
+    MEM(sp--) = *(byteptr + 1);
+    CHECKSTACKOVERFLOW();
+    MEM(sp--) = *byteptr;
+    CHECKSTACKOVERFLOW();
+    fp = sp;
+    ++pc;
+}
+
+/*
+ * Copy frame pointer to stack pointer. (Release local vars)
+ */
+void vm_fptosp() {
+    sp = fp;
+    /* Pop old FP from stack -> FP */
+    CHECKSTACKUNDERFLOW(2);
+    sp += 2;
+    CHECKOVERFLOW();
+#ifdef __GNUC__
+    wordptr = (unsigned short *)&MEM(sp - 1);
+#else
+    tempword = sp - 1;
+    wordptr = (unsigned short *)&MEM(tempword);
+#endif
+    fp = *wordptr;
+    ++pc;
+}
+
+/*
+ * Convert absolute address in X to relative address
+ */
+void vm_ator() {
+#ifdef __GNUC__
+    XREG = (XREG - fp - 1) & 0xffff;
+#else
+    XREG = XREG - fp - 1;
+#endif
+    ++pc;
+}
+
+/*
+ * Convert relative address in X to absolute address
+ */
+void vm_rtoa() {
+#ifdef __GNUC__
+    XREG = (XREG + fp + 1) & 0xffff;
+#else
+    XREG = XREG + fp + 1;
+#endif
+    ++pc;
+}
+
+/*
+ * X = X+1
+ */
+void vm_inc() {
+    CHECKUNDERFLOW(1);
+    ++XREG;
+    ++pc;
+}
+
+/*
+ * X = X-1
+ */
+void vm_dec() {
+    CHECKUNDERFLOW(1);
+    --XREG;
+    ++pc;
+}
+
+/*
+ * X = Y+X.  Y is dropped
+ */
+void vm_add() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG + XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y-X.  Y is dropped
+ */
+void vm_sub() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG - XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y*X.  Y is dropped
+ */
+void vm_mul() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG * XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y/X. Y is dropped
+ */
+void vm_div() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG / XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y%X. Y is dropped
+ */
+void vm_mod() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG % XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = -X
+ */
+void vm_neg() {
+    CHECKUNDERFLOW(1);
+    XREG = -XREG;
+    ++pc;
+}
+
+/*
+ * X = Y>X.  Y is dropped
+ */
+void vm_gt() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG > XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y>=X. Y is dropped
+ */
+void vm_gte() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG >= XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y<X.  Y is dropped
+ */
+void vm_lt() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG < XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y<=X. Y is dropped
+ */
+void vm_lte() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG <= XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y==X. Y is dropped
+ */
+void vm_eql() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG == XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y!=X. Y is dropped
+ */
+void vm_neql() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG != XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y&&X. Y is dropped
+ */
+void vm_and() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG && XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y||X. Y is dropped
+ */
+void vm_or() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG || XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = !X
+ */
+void vm_not() {
+    CHECKUNDERFLOW(1);
+    XREG = !XREG;
+    ++pc;
+}
+
+/*
+ * X = Y&X. Y is dropped
+ */
+void vm_bitand() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG & XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y|X. Y is dropped
+ */
+void vm_bitor() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG | XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y^X. Y is dropped
+ */
+void vm_bitxor() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG ^ XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = ~X
+ */
+void vm_bitnot() {
+    CHECKUNDERFLOW(1);
+    XREG = ~XREG;
+    ++pc;
+}
+
+/*
+ * X = Y<<X. Y is dropped
+ */
+void vm_lsh() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG << XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * X = Y>>X. Y is dropped
+ */
+void vm_rsh() {
+    CHECKUNDERFLOW(2);
+    YREG = YREG >> XREG;
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Jump to address X.  Drop X
+ */
+void vm_jmp() {
+    CHECKUNDERFLOW(1);
+    pc = XREG;
+    --evalptr;
+}
+
+/*
+ * Imm mode - jump to 16 bit word following opcode
+ */
+void vm_jmpimm() {
+    wordptr = (unsigned short *)&MEM(++pc);
+    pc = *wordptr;
+}
+
+/*
+ * If Y!= 0, jump to address X.  Drop X, Y
+ */
+void vm_brnch() {
+    CHECKUNDERFLOW(2);
+    if (YREG) {
+        pc = XREG;
+    } else {
+        ++pc;
+    }
+    evalptr -= 2;
+}
+
+/*
+ * Imm mode - if X!=0 branch to 16 bit word following opcode
+ */
+void vm_brnchimm() {
+    wordptr = (unsigned short *)&MEM(++pc);
+    CHECKUNDERFLOW(1);
+    if (XREG) {
+        pc = *wordptr;
+    } else {
+        pc += 2;
+    }
+    --evalptr;
+}
+
+/*
+ * Push PC to call stack.  Jump to address X.  Drop X
+ */
+void vm_jsr() {
+    CHECKUNDERFLOW(1);
+    byteptr = (unsigned char *) &pc;
+    MEM(sp) = *(byteptr + 1);
+    --sp;
+    CHECKSTACKOVERFLOW();
+    MEM(sp) = *byteptr;
+    --sp;
+    CHECKSTACKOVERFLOW();
+    pc = XREG;
+    --evalptr;
+}
+
+/*
+ * Imm mode - push PC to call stack, jump to 16 bit word
+ */
+void vm_jsrimm() {
+    wordptr = (unsigned short *)&MEM(++pc);
+    ++pc;
+    byteptr = (unsigned char *) &pc;
+    MEM(sp) = *(byteptr + 1);
+    --sp;
+    CHECKSTACKOVERFLOW();
+    MEM(sp) = *byteptr;
+    --sp;
+    CHECKSTACKOVERFLOW();
+    pc = *wordptr;
+}
+
+/*
+ * Pop call stack, jump to the address popped
+ */
+void vm_rts() {
+    CHECKSTACKUNDERFLOW(2);
+    ++sp;
+    wordptr = (unsigned short *)&MEM(sp);
+    pc = *wordptr;
+    ++sp;
+    ++pc;
+}
+
+/*
+ * Print 16 bit decimal in X.  Drop X
+ */
+void vm_prdec() {
+    CHECKUNDERFLOW(1);
+    printdec(XREG);
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Print 16 bit hex in X.  Drop X
+ */
+void vm_prhex() {
+    CHECKUNDERFLOW(1);
+    printhex(XREG);
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Print character in X.  Drop X
+ */
+void vm_prch() {
+    CHECKUNDERFLOW(1);
+    printchar((unsigned char) XREG);
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Print null terminated string pointed to by X.  Drop X
+ */
+void vm_prstr() {
+    CHECKUNDERFLOW(1);
+    while (MEM(XREG)) {
+        printchar(MEM(XREG++));
+    }
+    --evalptr;
+    ++pc;
+}
+
+/*
+ * Print literal string at PC (null terminated)
+ */
+void vm_prmsg() {
+    ++pc;
+    while (MEM(pc)) {
+        printchar(MEM(pc++));
+    }
+    ++pc;
+}
+
+/*
+ * Push character from keyboard onto eval stack
+ */
+void vm_kbdch() {
+    CHECKUNDERFLOW(1);
+    ++evalptr;
+    /* Loop until we get a keypress */
+#ifdef A2E
+    while (!(XREG = getkey()));
+#elif defined(CBM)
+    while (!(*(char *) XREG = cbm_k_getin()));
+#else
+    /* TODO: Unimplemented in Linux */
+    XREG = 0;
+#endif
+    ++pc;
+}
+
+/*
+ * Obtain line from keyboard and write to memory pointed to by
+ * Y. X contains the max number of bytes in buf. Drop X, Y
+ */
+void vm_kbdln() {
+    CHECKUNDERFLOW(2);
+    getln((char *) &MEM(YREG), XREG);
+    evalptr -= 2;
+    ++pc;
+}
+
+typedef void (*func)(void);
+
+/*
+ * Must be in same order as enum bytecode.
+ */
+func jumptbl[] = {
+vm_end,
+vm_ldimm,
+vm_ldaword,
+vm_ldawordimm,
+vm_ldabyte,
+vm_ldabyteimm,
+vm_staword,
+vm_stawordimm,
+vm_stabyte,
+vm_stabyteimm,
+vm_ldrword,
+vm_ldrwordimm,
+vm_ldrbyte,
+vm_ldrbyteimm,
+vm_strword,
+vm_strwordimm,
+vm_strbyte,
+vm_strbyteimm,
+vm_swap,
+vm_dup,
+vm_dup2,
+vm_drop,
+vm_over,
+vm_pick,
+vm_popword,
+vm_popbyte,
+vm_pshword,
+vm_pshbyte,
+vm_discard,
+vm_sptofp,
+vm_fptosp,
+vm_ator,
+vm_rtoa,
+vm_inc,
+vm_dec,
+vm_add,
+vm_sub,
+vm_mul,
+vm_div,
+vm_mod,
+vm_neg,
+vm_gt,
+vm_gte,
+vm_lt,
+vm_lte,
+vm_eql,
+vm_neql,
+vm_and,
+vm_or,
+vm_not,
+vm_bitand,
+vm_bitor,
+vm_bitxor,
+vm_bitnot,
+vm_lsh,
+vm_rsh,
+vm_jmp,
+vm_jmpimm,
+vm_brnch,
+vm_brnchimm,
+vm_jsr,
+vm_jsrimm,
+vm_rts,
+vm_prdec,
+vm_prhex,
+vm_prch,
+vm_prstr,
+vm_prmsg,
+vm_kbdch,
+vm_kbdln};
+
+/*
  * Fetch, decode and execute a VM instruction.
  * Advance program counter and loop until VM_END.
  */
 void execute()
 {
-    unsigned short d;
 #ifdef DEBUGREGS
     unsigned short i;
 #endif
@@ -269,8 +1170,6 @@ void execute()
     sp = fp = RTCALLSTACKTOP;
 
     while (1) {
-
-nextinstr:
 
     //print("--->PC "); printhex(pc); print(" eval stk: "); printhex(evalptr); print("\n");
 #ifdef DEBUGREGS
@@ -356,597 +1255,8 @@ nextinstr:
 #endif
 #endif
 
-    switch (MEM(pc)) {
-        /*
-         * Miscellaneous
-         */
-    case VM_END:               /* Terminate execution                                          */
-        if (evalptr > 0) {
-            print("WARNING: evalptr ");
-            printdec(evalptr);
-            printchar('\n');
-        }
-#ifdef __GNUC__
-        exit(0);
-#else
-        for (d = 0; d < 25000; ++d);
-        exit(0);
-#endif
-        break;
+    jumptbl[MEM(pc)]();
 
-        /*
-         * Load Immediate
-         */
-    case VM_LDIMM:             /* Pushes the following 16 bit word to the evaluation stack     */
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&MEM(++pc);
-        ++pc;
-        XREG = *wordptr;
-        break;
-        /*
-         * Absolute addressing:
-         * XREG points to absolute address within system memory.
-         */
-    case VM_LDAWORD:           /* Replaces X with 16 bit value pointed to by X.                */
-        CHECKUNDERFLOW(1);
-
-#ifdef DEBUGADDRESSING
-        print("\n  XREG: ");
-        printhex(XREG);
-        printchar('\n');
-#endif
-
-        wordptr = (unsigned short *)&MEM(XREG);
-        XREG = *wordptr;
-        break;
-    case VM_LDAWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-        wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
-        ++pc;
-        XREG = *wordptr;
-        break;
-    case VM_LDABYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
-        CHECKUNDERFLOW(1);
-        XREG = MEM(XREG);
-        break;
-    case VM_LDABYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode         */
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
-        byteptr = (unsigned char *)&MEM(*wordptr); /* Pointer to variable */
-        ++pc;
-        XREG = *byteptr;
-        break;
-    case VM_STAWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y.*/
-        CHECKUNDERFLOW(2);
-        wordptr = (unsigned short *)&MEM(XREG);
-        *wordptr = YREG;
-        evalptr -= 2;
-        break;
-    case VM_STAWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
-        CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-        wordptr = (unsigned short *)&MEM(*wordptr); /* Pointer to variable */
-        ++pc;
-        *wordptr = XREG;
-        --evalptr;
-        break;
-    case VM_STABYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
-        CHECKUNDERFLOW(2);
-        MEM(XREG) = YREG;
-        evalptr -= 2;
-        break;
-    case VM_STABYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
-        CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-        byteptr = (unsigned char *)&MEM(*wordptr);  /* Pointer to variable */
-        ++pc;
-        *byteptr = XREG;
-        --evalptr;
-        break;
-        /*
-         * Relative to Frame Pointer addressing:
-         * XREG points to address in system memory relative to the frame pointer.
-         */
-    case VM_LDRWORD:           /* Replaces X with 16 bit value pointed to by X.                */
-        CHECKUNDERFLOW(1);
-
-#ifdef DEBUGADDRESSING
-        print("\n  XREG: ");
-        printhex(XREG);
-        print(", FP: ");
-        printhex(fp);
-        print(" -> ");
-        printhex((XREG + fp + 1) & 0xffff);
-        printchar('\n');
-#endif
-
-#ifdef __GNUC__
-        wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
-#else
-        wordptr = (unsigned short *)&memory[XREG + fp + 1];
-#endif
-        XREG = *wordptr;
-        break;
-    case VM_LDRWORDIMM:        /* Imm mode - push 16 bit value pointed to by addr after opcode */
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-#ifdef __GNUC__
-        wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
-#else
-        wordptr = (unsigned short *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
-#endif
-        ++pc;
-        XREG = *wordptr;
-        break;
-    case VM_LDRBYTE:           /* Replaces X with 8 bit value pointed to by X.                 */
-        CHECKUNDERFLOW(1);
-
-#ifdef DEBUGADDRESSING
-        print("\n  XREG: ");
-        printhex(XREG);
-        print(", FP: ");
-        printhex(fp);
-        print(" -> ");
-        printhex((XREG + fp + 1) & 0xffff);
-        printchar('\n');
-#endif
-
-#ifdef __GNUC__
-        XREG = MEM((XREG + fp + 1) & 0xffff);
-#else
-        XREG = MEM(XREG + fp + 1);
-#endif
-        break;
-    case VM_LDRBYTEIMM:        /* Imm mode - push byte pointed to by addr after opcode          */
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&MEM(++pc);    /* Pointer to operand */
-#ifdef __GNUC__
-        byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
-#else
-        byteptr = (unsigned char *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
-#endif
-        ++pc;
-        XREG = *byteptr;
-        break;
-    case VM_STRWORD:           /* Stores 16 bit value Y in addr pointed to by X. Drops X and Y. */
-        CHECKUNDERFLOW(2);
-#ifdef __GNUC__
-        wordptr = (unsigned short *)&memory[(XREG + fp + 1) & 0xffff];
-#else
-        wordptr = (unsigned short *)&memory[XREG + fp + 1];
-#endif
-        *wordptr = YREG;
-        evalptr -= 2;
-        break;
-    case VM_STRWORDIMM:        /* Imm mode - store 16 bit value X in addr after opcode. Drop X.*/
-        CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-#ifdef __GNUC__
-        wordptr = (unsigned short *)&memory[(*wordptr + fp + 1) & 0xffff]; /* Pointer to variable */
-#else
-        wordptr = (unsigned short *)&memory[*wordptr + fp + 1]; /* Pointer to variable */
-#endif
-        ++pc;
-        *wordptr = XREG;
-        --evalptr;
-        break;
-    case VM_STRBYTE:           /* Stores 8 bit value Y in addr pointed to by X. Drops X and Y. */
-        CHECKUNDERFLOW(2);
-#ifdef __GNUC__
-        memory[(XREG + fp + 1) & 0xffff] = YREG;
-#else
-        memory[XREG + fp + 1] = YREG;
-#endif
-        evalptr -= 2;
-        break;
-    case VM_STRBYTEIMM:        /* Imm mode - store 8 bit value X in addr after opcode. Drop X.*/
-        CHECKUNDERFLOW(1);
-        wordptr = (unsigned short *)&MEM(++pc);     /* Pointer to operand */
-#ifdef __GNUC__
-        byteptr = (unsigned char *)&memory[(*wordptr + fp + 1) & 0xffff];  /* Pointer to variable */
-#else
-        byteptr = (unsigned char *)&memory[*wordptr + fp + 1];  /* Pointer to variable */
-#endif
-        ++pc;
-        *byteptr = XREG;
-        --evalptr;
-        break;
-        /*
-         * Manipulate evaluation stack
-         */
-    case VM_SWAP:              /* Swaps X and Y                                                */
-        CHECKUNDERFLOW(2);
-        d = XREG;
-        XREG = YREG;
-        YREG = d;
-        break;
-    case VM_DUP:               /* Duplicates X -> X, Y                                         */
-        CHECKUNDERFLOW(1);
-        ++evalptr;
-        CHECKOVERFLOW();
-        XREG = YREG;
-        break;
-    case VM_DUP2:              /* Duplicates X -> X,Z; Y -> Y,T                                */
-        CHECKUNDERFLOW(2);
-        evalptr += 2;
-        CHECKOVERFLOW();
-        XREG = ZREG;
-        YREG = TREG;
-        break;
-    case VM_DROP:              /* Drops X                                                      */
-        CHECKUNDERFLOW(1);
-        --evalptr;
-        break;
-    case VM_OVER:              /* Duplicates Y -> X,Z                                           */
-        CHECKUNDERFLOW(2);
-        ++evalptr;
-        CHECKOVERFLOW();
-        XREG = ZREG;
-        break;
-    case VM_PICK:              /* Duplicates stack level specified in X+1  -> X                  */
-        CHECKUNDERFLOW(XREG + 1);
-        XREG = evalstack[evalptr - (XREG + 1)];
-        break;
-        /*
-         * Manipulate call stack
-         */
-    case VM_POPWORD:           /* Pop 16 bit value from call stack, push onto eval stack [X]   */
-        CHECKSTACKUNDERFLOW(2);
-        sp += 2;
-        ++evalptr;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[sp - 1];
-        XREG = *wordptr;
-        break;
-    case VM_POPBYTE:           /* Pop 8 bit value from call stack, push onto eval stack [X]    */
-        CHECKSTACKUNDERFLOW(1);
-        ++sp;
-        ++evalptr;
-        CHECKOVERFLOW();
-        XREG = MEM(sp);
-        break;
-    case VM_PSHWORD:           /* Push 16 bit value in X onto call stack.  Drop X.             */
-        CHECKUNDERFLOW(1);
-
-#ifdef DEBUGSTACK
-        print("\n  Push word to ");
-        printhex(sp - 1);
-        printchar('\n');
-#endif
-        byteptr = (unsigned char *)&XREG;
-        MEM(sp--) = *(byteptr + 1);
-        CHECKSTACKOVERFLOW();
-        MEM(sp--) = *byteptr;
-        CHECKSTACKOVERFLOW();
-        --evalptr;
-        break;
-    case VM_PSHBYTE:           /* Push 8 bit value in X onto call stack.  Drop X.              */
-        CHECKUNDERFLOW(1);
-
-#ifdef DEBUGSTACK
-        print("\n  Push byte to ");
-        printhex(sp);
-        printchar('\n');
-#endif
-
-        MEM(sp--) = XREG & 0x00ff;
-        CHECKSTACKOVERFLOW();
-        --evalptr;
-        break;
-    case VM_DISCARD:           /* Discard X bytes from call stack.  Drop X.                    */
-        CHECKUNDERFLOW(1);
-        sp += XREG;
-        --evalptr;
-        break;
-    case VM_SPTOFP:            /* Copy stack pointer to frame pointer. (Enter function scope)  */
-
-#ifdef DEBUGSTACK
-        print("\n  SPTOFP  FP before ");
-        printhex(fp);
-        print(" SP ");
-        printhex(sp);
-        printchar('\n');
-#endif
-
-        /* Push old FP to stack */
-        byteptr = (unsigned char *)&fp;
-        MEM(sp--) = *(byteptr + 1);
-        CHECKSTACKOVERFLOW();
-        MEM(sp--) = *byteptr;
-        CHECKSTACKOVERFLOW();
-
-        fp = sp;
-        break;
-    case VM_FPTOSP:            /* Copy frame pointer to stack pointer. (Release local vars)    */
-
-#ifdef DEBUGSTACK
-        print("\n  FPTOSP  SP before ");
-        printhex(sp);
-        print(" FP ");
-        printhex(fp);
-        printchar('\n');
-#endif
-
-        sp = fp;
-
-        /* Pop old FP from stack -> FP */
-        CHECKSTACKUNDERFLOW(2);
-        sp += 2;
-        CHECKOVERFLOW();
-        wordptr = (unsigned short *)&memory[sp - 1];
-        fp = *wordptr;
-
-#ifdef DEBUGSTACK
-        print("  Recovered FP ");
-        printhex(fp);
-        print(" from stack\n");
-#endif
-
-        break;
-    case VM_ATOR:              /* Convert absolute address in X to relative address            */
-#ifdef __GNUC__
-        XREG = (XREG - fp - 1) & 0xffff;
-#else
-        XREG = XREG - fp - 1;
-#endif
-        break;
-    case VM_RTOA:              /* Convert relative address in X to absolute address            */
-#ifdef __GNUC__
-        XREG = (XREG + fp + 1) & 0xffff;
-#else
-        XREG = XREG + fp + 1;
-#endif
-        break;
-        /*
-         * Integer math
-         */
-    case VM_INC:               /* X = X+1.                                                     */
-        CHECKUNDERFLOW(1);
-        ++XREG;
-        break;
-    case VM_DEC:               /* X = X-1.                                                     */
-        CHECKUNDERFLOW(1);
-        --XREG;
-        break;
-    case VM_ADD:               /* X = Y+X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG + XREG;
-        --evalptr;
-        break;
-    case VM_SUB:               /* X = Y-X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG - XREG;
-        --evalptr;
-        break;
-    case VM_MUL:               /* X = Y*X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG * XREG;
-        --evalptr;
-        break;
-    case VM_DIV:               /* X = Y/X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG / XREG;
-        --evalptr;
-        break;
-    case VM_MOD:               /* X = Y%X.  Y is dropped                                     . */
-        CHECKUNDERFLOW(2);
-        YREG = YREG % XREG;
-        --evalptr;
-        break;
-    case VM_NEG:               /* X = -X                                                       */
-        CHECKUNDERFLOW(1);
-        XREG = -XREG;
-        break;
-        /*
-         * Comparisons
-         */
-    case VM_GT:                /* X = Y>X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG > XREG;
-        --evalptr;
-        break;
-    case VM_GTE:               /* X = Y>=X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG >= XREG;
-        --evalptr;
-        break;
-    case VM_LT:                /* X = Y<X.  Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG < XREG;
-        --evalptr;
-        break;
-    case VM_LTE:               /* X = Y<=X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG <= XREG;
-        --evalptr;
-        break;
-    case VM_EQL:               /* X = Y==X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG == XREG;
-        --evalptr;
-        break;
-    case VM_NEQL:              /* X = Y!=X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG != XREG;
-        --evalptr;
-        break;
-        /*
-         * Logical operations
-         */
-    case VM_AND:               /* X = Y&&X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG && XREG;
-        --evalptr;
-        break;
-    case VM_OR:                /* X = Y||X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG || XREG;
-        --evalptr;
-        break;
-    case VM_NOT:               /* X = !X                                                       */
-        CHECKUNDERFLOW(1);
-        XREG = !XREG;
-        break;
-        /*
-         * Bitwise operations
-         */
-    case VM_BITAND:            /* X = Y&X. Y is dropped.                                       */
-        CHECKUNDERFLOW(2);
-        YREG = YREG & XREG;
-        --evalptr;
-        break;
-    case VM_BITOR:             /* X = Y|X. Y is dropped.                                       */
-        CHECKUNDERFLOW(2);
-        YREG = YREG | XREG;
-        --evalptr;
-        break;
-    case VM_BITXOR:            /* X = Y^X. Y is dropped.                                       */
-        CHECKUNDERFLOW(2);
-        YREG = YREG ^ XREG;
-        --evalptr;
-        break;
-    case VM_BITNOT:            /* X = ~X.                                                      */
-        CHECKUNDERFLOW(1);
-        XREG = ~XREG;
-        break;
-    case VM_LSH:               /* X = Y<<X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG << XREG;
-        --evalptr;
-        break;
-    case VM_RSH:               /* X = Y>>X. Y is dropped.                                      */
-        CHECKUNDERFLOW(2);
-        YREG = YREG >> XREG;
-        --evalptr;
-        break;
-        /*
-         * Flow control
-         */
-    case VM_JMP:               /* Jump to address X.  Drop X.                                  */
-        CHECKUNDERFLOW(1);
-        pc = XREG;
-        --evalptr;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_JMPIMM:            /* Imm mode - jump to 16 bit word following opcode              */
-        wordptr = (unsigned short *)&MEM(++pc);
-        ++pc;
-        pc = *wordptr;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_BRNCH:             /* If Y!= 0, jump to address X.  Drop X, Y.                     */
-        CHECKUNDERFLOW(2);
-        if (YREG) {
-            pc = XREG;
-        } else {
-            ++pc;
-        }
-        evalptr -= 2;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_BRNCHIMM:          /* Imm mode - if X!=0 branch to 16 bit word following opcode    */
-        wordptr = (unsigned short *)&MEM(++pc);
-        ++pc;
-        CHECKUNDERFLOW(1);
-        if (XREG) {
-            pc = *wordptr;
-        } else {
-            ++pc;
-        }
-        --evalptr;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_JSR:               /* Push PC to call stack.  Jump to address X.  Drop X.          */
-        CHECKUNDERFLOW(1);
-        byteptr = (unsigned char *) &pc;
-        MEM(sp) = *(byteptr + 1);
-        --sp;
-        CHECKSTACKOVERFLOW();
-        MEM(sp) = *byteptr;
-        --sp;
-        CHECKSTACKOVERFLOW();
-        pc = XREG;
-        --evalptr;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_JSRIMM:            /* Imm mode - push PC to calls stack, jump to 16 bit word       */
-        wordptr = (unsigned short *)&MEM(++pc);
-        ++pc;
-        byteptr = (unsigned char *) &pc;
-        MEM(sp) = *(byteptr + 1);
-        --sp;
-        CHECKSTACKOVERFLOW();
-        MEM(sp) = *byteptr;
-        --sp;
-        CHECKSTACKOVERFLOW();
-        pc = *wordptr;
-        goto nextinstr;        /* Do not advance program counter */
-    case VM_RTS:               /* Pop call stack, jump to the address popped.                  */
-        CHECKSTACKUNDERFLOW(2);
-        ++sp;
-        wordptr = (unsigned short *)&MEM(sp);
-        pc = *wordptr;
-        ++sp;
-        break;
-        /*
-         * Input / Output
-         */
-    case VM_PRDEC:             /* Print 16 bit decimal in X.  Drop X                           */
-        CHECKUNDERFLOW(1);
-        printdec(XREG);
-        --evalptr;
-        break;
-    case VM_PRHEX:             /* Print 16 bit hex in X.  Drop X                               */
-        CHECKUNDERFLOW(1);
-        printhex(XREG);
-        --evalptr;
-        break;
-    case VM_PRCH:              /* Print character in X.  Drop X                                */
-        CHECKUNDERFLOW(1);
-        printchar((unsigned char) XREG);
-        --evalptr;
-        break;
-    case VM_PRSTR:             /* Print null terminated string pointed to by X.  Drop X        */
-        CHECKUNDERFLOW(1);
-        while (MEM(XREG)) {
-            printchar(MEM(XREG++));
-        }
-        --evalptr;
-        break;
-    case VM_PRMSG:             /* Print literal string at PC (null terminated)                 */
-        ++pc;
-        while (MEM(pc)) {
-            printchar(MEM(pc++));
-        }
-        break;
-    case VM_KBDCH:             /* Push character from keyboard onto eval stack                 */
-        CHECKUNDERFLOW(1);
-        ++evalptr;
-        /* Loop until we get a keypress */
-#ifdef A2E
-        while (!(XREG = getkey()));
-#elif defined(CBM)
-        while (!(*(char *) XREG = cbm_k_getin()));
-#else
-        /* TODO: Unimplemented in Linux */
-        XREG = 0;
-#endif
-        break;
-    case VM_KBDLN:             /* Obtain line from keyboard and write to memory pointed to by  */
-        /* Y. X contains the max number of bytes in buf. Drop X, Y.     */
-        CHECKUNDERFLOW(2);
-        getln((char *) &MEM(YREG), XREG);
-        evalptr -= 2;
-        break;
-        /*
-         * Unsupported instruction
-         */
-    default:
-        UNSUPPORTED();
-        break;
-    }
-    ++pc;
     }
 };
 
