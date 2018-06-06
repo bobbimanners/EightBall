@@ -53,11 +53,10 @@
  * Define EXTMEMCODE to enable extended memory support for object code.
  * Works for Apple //e only at present, but easy to extend.
  * EXTMEMCODE can only be enabled if EXTMEM is also enabled.
- * At present EXTMEMCODE is **BROKEN** due to apparent bug in cc65 ext mem driver
  */ 
 #ifdef A2E
 #define EXTMEM      /* Enable/disable extended memory for source code */
-#undef EXTMEMCODE   /* Enable/disable extended memory for object code */
+#define EXTMEMCODE  /* Enable/disable extended memory for object code */
 #endif
 
 /* Shortcut define CC65 makes code clearer */
@@ -1613,24 +1612,35 @@ struct em_copy emcopy;
 
 char embuf[255];
 char embuf2[255];
-char buf[3];
 
+char b;
+extern char *addrptr;
+#pragma zpsym ("addrptr");
+
+/*
+ * This inline assembler version avoids the memory corruption
+ * which results from using em_copyto() in this situation.
+ */
 void copybytetoaux(char *auxptr, char byte) {
-    //char *p = em_map((unsigned int)auxptr >> 8);
-    //*(p + (unsigned char)auxptr) = byte;
-    //em_commit();
-
-    buf[0] = byte;
-    buf[1] = 0;
-    emcopy.buf = buf;
+    addrptr = auxptr; /* addrptr is in zero page */
+    addrptr += 0x200; /* BASE address offset */
+    b = byte;
+    __asm__("sta $c005"); /* Write to aux mem */
+    __asm__("lda %v", b);
+    __asm__("sta (%v)", addrptr); /* 65C02 instruction */
+    __asm__("sta $c004"); /* Back to normal */
+#if 0 
+    b = byte;
+    emcopy.buf = &b;
     emcopy.count = 1;
     emcopy.offs = (unsigned char)auxptr;
     emcopy.page = (unsigned int)auxptr >> 8;
     em_copyto(&emcopy);
+#endif
 }
 
 void copybytefromaux(char *auxptr) {
-    emcopy.buf = buf;
+    emcopy.buf = embuf;
     emcopy.count = 1;
     emcopy.offs = (unsigned char)auxptr;
     emcopy.page = (unsigned int)auxptr >> 8;
@@ -1741,6 +1751,7 @@ void emitprmsg(void)
         ++rtPC;
     }
     copybytetoaux(codeptr++, 0);
+    ++rtPC;
 #else
     emit(VM_PRMSG);
     ++rtPC;
@@ -1749,6 +1760,7 @@ void emitprmsg(void)
         ++rtPC;
     }
     *codeptr++ = 0;
+    /* TODO: For some reason I don't need ++rtPC here */
 #endif
 }
 #ifdef A2E
@@ -1812,7 +1824,7 @@ void writebytecode()
     while (p < end) {
 #ifdef EXTMEMCODE
         copybytefromaux(p);
-        q = buf;
+        q = embuf;
 #else
         q = p;
 #endif
@@ -2927,7 +2939,7 @@ unsigned char doelse()
         /*
          * Code to jump over ELSE block when IF condition is true
          */
-        return_stack[returnSP + 1] = rtPC;
+        return_stack[returnSP + 1] = rtPC + 1;
         emit_imm(VM_JMPIMM, 0xffff); /* To be filled in later */
 
         /*
@@ -2978,7 +2990,7 @@ unsigned char doendif()
          * actually an ELSE.)
          */
         if (return_stack[returnSP + 1]) {
-            emit_fixup(return_stack[returnSP + 1] + 1, rtPC);
+            emit_fixup(return_stack[returnSP + 1], rtPC);
         }
     } else {
         /*

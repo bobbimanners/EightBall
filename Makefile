@@ -113,6 +113,9 @@ eightball_a2e.o: eightball.c eightballutils.h eightballvm.h
 	$(CC65BINDIR)/cc65 -Or -t apple2enh -D A2E -o eightball_a2e.s eightball.c
 	$(CC65BINDIR)/ca65 -t apple2enh eightball_a2e.s
 
+eightballzp_a2e.o: eightballzp_a2e.S
+	$(CC65BINDIR)/ca65 -t apple2enh eightballzp_a2e.S
+
 eightballvm_a2e.o: eightballvm.c eightballutils.h eightballvm.h
 	$(CC65BINDIR)/cc65 -r -Oirs -t apple2enh -D A2E -o eightballvm_a2e.s eightballvm.c
 	$(CC65BINDIR)/ca65 -t apple2enh eightballvm_a2e.s
@@ -128,8 +131,8 @@ eightballutils_a2e.o: eightballutils.c eightballutils.h
 	$(CC65BINDIR)/cc65 -Or -t apple2enh -D A2E -o eightballutils_a2e.s eightballutils.c
 	$(CC65BINDIR)/ca65 -t apple2enh eightballutils_a2e.s
 
-bin/eb: eightball_a2e.o eightballutils_a2e.o
-	$(CC65BINDIR)/ld65 -m 8balla2e.map -o bin/eb -C apple2enh.cfg -D __HIMEM__=0xbf00 eightball_a2e.o eightballutils_a2e.o $(CC65LIBDIR)/apple2enh.lib
+bin/eb: eightball_a2e.o eightballutils_a2e.o eightballzp_a2e.o
+	$(CC65BINDIR)/ld65 -m 8balla2e.map -o bin/eb -C apple2enh.cfg -D __HIMEM__=0xbf00 eightball_a2e.o eightballutils_a2e.o eightballzp_a2e.o $(CC65LIBDIR)/apple2enh.lib
 
 bin/ebvm: eightballvm_a2e.o eightballutils_a2e.o eightballvmzp_a2e.o
 	$(CC65BINDIR)/ld65 -m 8ballvma2e.map -o bin/ebvm -C apple2enh.cfg -D __HIMEM__=0xbf00 eightballvm_a2e.o eightballutils_a2e.o eightballvmzp_a2e.o $(CC65LIBDIR)/apple2enh.lib
