@@ -1,6 +1,6 @@
 # The Eight Bit Algorithmic Language
 
-![picture](https://upload.wikimedia.org/wikipedia/commons/7/78/8_ball_face.jpg)
+<p align="center"><img src="pics/Asset 1.png" alt="eightball" height="200px"></p>
 
 The Eight Bit Algorithmic Language for Apple II, Commodore 64 and VIC20
 
