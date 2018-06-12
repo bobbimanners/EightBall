@@ -400,9 +400,6 @@ void error(unsigned char errcode)
 {
     printchar('?');
     print(errmsgs[errcode - ERR_FIRST]);
-    print(" \"");
-    print(txtPtr);
-    print("\"\n");
 }
 #ifdef A2E
 #pragma code-name (pop)
