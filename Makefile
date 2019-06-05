@@ -10,7 +10,7 @@ CC65BINDIR = $(CC65DIR)/bin
 CC65LIBDIR = $(CC65DIR)/lib
 CC65INCDIR = $(CC65DIR)/include
 CA65INCDIR = $(CC65DIR)/asminc
-APPLECMDR = ~/Desktop/Apple2/AppleCommander-1.3.5.jar
+APPLECMDR = ~/Personal/Historic\ Computing/Micros/Apple2/AppleCommander-1.3.5.jar
 
 all: bin/eightball bin/eightballvm bin/disass bin/8ball20.prg bin/8ballvm20.prg bin/disass20.prg bin/8ball64.prg bin/8ballvm64.prg bin/disass64.prg bin/eb bin/ebvm bin/ebdiss disk-images/eightball.d64 disk-images/eightball.dsk
 
